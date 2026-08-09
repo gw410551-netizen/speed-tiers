@@ -62,3 +62,29 @@ const PORT = 3000;
 app.listen(PORT, () => {
     console.log(`Backend server is running on http://localhost:${PORT} 🌐`);
 });
+
+const axios = require('axios');
+
+async function syncResultsToGitHub(data) {
+    const owner = 'gw410551-netizen';
+    const repo = 'speed-tiers';
+    const path = 'results.json';
+    const token = process.env.GITHUB_TOKEN;
+
+    try {
+        const { data: fileData } = await axios.get(`https://api.github.com/repos/${owner}/${repo}/contents/${path}`, {
+            headers: { Authorization: `token ${token}` }
+        });
+
+        await axios.put(`https://api.github.com/repos/${owner}/${repo}/contents/${path}`, {
+            message: 'Update results automatically via Bot',
+            content: Buffer.from(JSON.stringify(data, null, 2)).toString('base64'),
+            sha: fileData.sha
+        }, {
+            headers: { Authorization: `token ${token}` }
+        });
+        console.log('GitHub updated successfully!');
+    } catch (error) {
+        console.error('Error updating GitHub:', error.message);
+    }
+}
