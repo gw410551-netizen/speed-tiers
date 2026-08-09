@@ -275,7 +275,7 @@
             });
 
             data.forEach((item, index) => {
-                const skinHeadUrl = `https://mc-heads.net/avatar/${item.minecraftName}/38`;
+                const skinHeadUrl = item.skinUrl ? item.skinUrl : `https://mc-heads.net/avatar/${item.minecraftName}/38`;
                 
                 // المركز الأول أصفر ذهبي ساطع (#ffd700)، وباقي المراكز أصفر داكن/برونزي (#d4af37)
                 const rankColor = index === 0 ? '#ffd700' : '#d4af37';
