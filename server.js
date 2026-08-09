@@ -1,5 +1,7 @@
 const express = require('express');
 const cors = require('cors');
+const app = express();
+app.use(cors()); // السماح بالاتصال من أي مكان
 const fs = require('fs');
 const axios = require('axios');
 
