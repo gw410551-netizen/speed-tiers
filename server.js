@@ -7,66 +7,9 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 
-// ملف محلي لتخزين النتائج (قاعدة بيانات مؤقتة وبسيطة)
 const DB_FILE = './results.json';
 
-// جلب جميع النتائج للموقع
-app.get('/api/results', (req, res) => {
-    if (!fs.existsSync(DB_FILE)) {
-        return res.json([]);
-    }
-    const data = JSON.parse(fs.readFileSync(DB_FILE));
-    res.json(data);
-});
-
-// استقبال نتيجة جديدة من البوت
-// استقبال نتيجة جديدة أو تحديثها للبوت
-app.post('/api/results', (req, res) => {
-    const newResult = req.body;
-    let results = [];
-    
-    if (fs.existsSync(DB_FILE)) {
-        results = JSON.parse(fs.readFileSync(DB_FILE));
-    }
-    
-    // البحث عما إذا كان اللاعب قد اختبر مسبقاً في نفس النمط (GameMode)
-    const existingIndex = results.findIndex(item => 
-        item.minecraftName.toLowerCase() === newResult.minecraftName.toLowerCase() &&
-        item.gameMode.toLowerCase() === newResult.gameMode.toLowerCase()
-    );
-
-    if (existingIndex !== -1) {
-        // إذا كان موجوداً مسبقاً، يتم تحديث رتبته وتاريخه بالنتيجة الجديدة
-        results[existingIndex].tierLevel = newResult.tierLevel;
-        results[existingIndex].date = newResult.date;
-        results[existingIndex].tester = newResult.tester;
-    } else {
-        // إذا لم يكن موجوداً، يتم إضافته كجديد في الأعلى
-        results.unshift(newResult);
-    }
-    
-    fs.writeFileSync(DB_FILE, JSON.stringify(results, null, 2));
-    await syncResultsToGitHub(results);
-    res.json({ success: true, message: 'تم تحديث النتيجة وحفظها بنجاح!' });
-});
-// مسار لجلب النتائج للموقع
-app.get('/api/results', (req, res) => {
-    if (fs.existsSync(DB_FILE)) {
-        const data = fs.readFileSync(DB_FILE, 'utf8');
-        res.json(JSON.parse(data));
-    } else {
-        res.json([]);
-    }
-});
-// لخدمة ملفات الموقع
-app.use(express.static('public'));
-const PORT = 3000;
-app.listen(PORT, () => {
-    console.log(`Backend server is running on http://localhost:${PORT} 🌐`);
-});
-
-const axios = require('axios');
-
+// دالة مزامنة النتائج مع GitHub (موجودة في الأعلى ليراها السيرفر بوضوح)
 async function syncResultsToGitHub(data) {
     const owner = 'gw410551-netizen';
     const repo = 'speed-tiers';
@@ -90,3 +33,48 @@ async function syncResultsToGitHub(data) {
         console.error('Error updating GitHub:', error.message);
     }
 }
+
+// مسار جلب النتائج للموقع
+app.get('/api/results', (req, res) => {
+    if (!fs.existsSync(DB_FILE)) {
+        return res.json([]);
+    }
+    const data = fs.readFileSync(DB_FILE, 'utf8');
+    res.json(JSON.parse(data));
+});
+
+// استقبال نتيجة جديدة من البوت
+app.post('/api/results', async (req, res) => {
+    const newResult = req.body;
+    let results = [];
+
+    if (fs.existsSync(DB_FILE)) {
+        results = JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
+    }
+
+    const existingIndex = results.findIndex(item => 
+        item.minecraftName.toLowerCase() === newResult.minecraftName.toLowerCase() && 
+        item.gameMode.toLowerCase() === newResult.gameMode.toLowerCase()
+    );
+
+    if (existingIndex !== -1) {
+        results[existingIndex].tierLevel = newResult.tierLevel;
+        results[existingIndex].date = newResult.date;
+        results[existingIndex].tester = newResult.tester;
+    } else {
+        results.unshift(newResult);
+    }
+
+    fs.writeFileSync(DB_FILE, JSON.stringify(results, null, 2));
+    await syncResultsToGitHub(results);
+
+    res.json({ success: true, message: 'تم تحديث النتيجة وحفظها بنجاح' });
+});
+
+// خدمة ملفات الموقع
+app.use(express.static('public'));
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
+});
