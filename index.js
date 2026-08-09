@@ -78,7 +78,7 @@ client.on('messageCreate', async message => {
     message.reply('✅ تم تسجيل النتيجة وسحب السكن وإعطاء الرتبة بنجاح!');
     // إرسال البيانات لسيرفر الـ Backend لتظهر في الموقع
     try {
-        await fetch('http://localhost:8080/api/results', {
+        await fetch('http://127.0.0.1:8080/api/results', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
