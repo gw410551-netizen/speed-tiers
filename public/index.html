@@ -247,9 +247,9 @@
             'HT5': 9, 'LT5': 10
         };
 
-        fetch('/api/results')
-            .then(res => res.json())
-            .then(data => {
+        fetch('https://speed-tiers-discordtoken.up.railway.app/api/results')
+  .then(res => res.json())
+  .then(data => {
                 allResults = data;
                 sortAndRender(currentMode);
             });
