@@ -77,10 +77,8 @@ client.on('messageCreate', async message => {
     await resultsChannel.send({ embeds: [resultEmbed] });
     message.reply('✅ تم تسجيل النتيجة وسحب السكن وإعطاء الرتبة بنجاح!');
     // إرسال البيانات لسيرفر الـ Backend لتظهر في الموقع
- const fs = require('fs');
-// إرسال البيانات لسيرفر الـ Backend لتحديث الموقع وغيت هاب
     try {
-        await fetch('http://127.0.0.1:8080/api/results', {
+        await fetch('http://localhost:3000/api/results', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -91,11 +89,10 @@ client.on('messageCreate', async message => {
                 date: new Date().toISOString()
             })
         });
-        message.reply('✅ تم تسجيل النتيجة وإعطاء الرتبة وحفظها في الموقع وغيت هاب بنجاح!');
     } catch (err) {
-        console.error('فشل إرسال البيانات للسيرفر:', err);
-        message.reply('⚠️ تم إعطاء الرتبة وتسجيل الديسكورد، ولكن حدث خطأ في تحديث الموقع.');
+        console.error('فشل إرسال البيانات للموقع:', err);
     }
-});
 
-client.login(process.env.DISCORD_TOKEN);
+    message.reply('✅ تم تسجيل النتيجة وإعطاء الرتبة وحفظها في الموقع بنجاح!');
+});
+client.login(process.env.TOKEN);
