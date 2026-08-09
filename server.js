@@ -47,6 +47,15 @@ app.post('/api/results', (req, res) => {
     fs.writeFileSync(DB_FILE, JSON.stringify(results, null, 2));
     res.json({ success: true, message: 'تم تحديث النتيجة وحفظها بنجاح!' });
 });
+// مسار لجلب النتائج للموقع
+app.get('/api/results', (req, res) => {
+    if (fs.existsSync(DB_FILE)) {
+        const data = fs.readFileSync(DB_FILE, 'utf8');
+        res.json(JSON.parse(data));
+    } else {
+        res.json([]);
+    }
+});
 // لخدمة ملفات الموقع
 app.use(express.static('public'));
 const PORT = 3000;
