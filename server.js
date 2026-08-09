@@ -45,6 +45,7 @@ app.post('/api/results', (req, res) => {
     }
     
     fs.writeFileSync(DB_FILE, JSON.stringify(results, null, 2));
+    await syncResultsToGitHub(results);
     res.json({ success: true, message: 'تم تحديث النتيجة وحفظها بنجاح!' });
 });
 // مسار لجلب النتائج للموقع
