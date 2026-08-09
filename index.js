@@ -77,22 +77,23 @@ client.on('messageCreate', async message => {
     await resultsChannel.send({ embeds: [resultEmbed] });
     message.reply('✅ تم تسجيل النتيجة وسحب السكن وإعطاء الرتبة بنجاح!');
     // إرسال البيانات لسيرفر الـ Backend لتظهر في الموقع
-    try {
-        await fetch('http://127.0.0.1:8080/api/results', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                minecraftName,
-                tierLevel,
-                gameMode,
-                tester: message.author.tag,
-                date: new Date().toISOString()
-            })
-        });
-    } catch (err) {
-        console.error('فشل إرسال البيانات للموقع:', err);
+ const fs = require('fs');
+ try {
+    let results = [];
+    if (fs.existsSync('./results.json')) {
+        results = JSON.parse(fs.readFileSync('./results.json', 'utf8'));
     }
-
+    results.unshift({
+        minecraftName,
+        tierLevel,
+        gameMode,
+        tester: message.author.tag,
+        date: new Date().toISOString()
+    });
+    fs.writeFileSync('./results.json', JSON.stringify(results, null, 2));
+} catch (err) {
+    console.error('فشل حفظ البيانات:', err);
+}
     message.reply('✅ تم تسجيل النتيجة وإعطاء الرتبة وحفظها في الموقع بنجاح!');
 });
 client.login(process.env.TOKEN);
