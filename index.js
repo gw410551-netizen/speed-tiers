@@ -20,11 +20,11 @@ client.on('messageCreate', async message => {
     // 1. استخراج منشن المسؤول
     const member = message.mentions.members.first();
 
-    // 2. استخراج الرتبة (يبحث عن أي كلمة مطابقة لقائمة التيرز)
+    // 2. استخراج الرتبة
     const validTiers = ['HT1', 'LT1', 'HT2', 'LT2', 'HT3', 'LT3', 'HT4', 'LT4', 'HT5', 'LT5'];
     const tierLevel = args.find(arg => validTiers.includes(arg.toUpperCase()))?.toUpperCase();
 
-    // 3. استخراج الجيم مود (يبحث عن أي نمط من الأنماط المتاحة)
+    // 3. استخراج الجيم مود
     const validModes = ['sword', 'mace', 'axe', 'vanilla', 'uhc', 'pot', 'nethop', 'smp'];
     const foundMode = args.find(arg => validModes.includes(arg.toLowerCase()));
     const gameMode = foundMode ? foundMode.charAt(0).toUpperCase() + foundMode.slice(1).toLowerCase() : '';
@@ -36,10 +36,17 @@ client.on('messageCreate', async message => {
         !validModes.includes(arg.toLowerCase())
     );
 
-    if (!member || !tierLevel || !minecraftName || !gameMode) {
-        return message.reply('❌ صيغة الأمر غير صحيحة! مثال:\n`!test Alpha_Craft @RobotStudio LT5 Vanilla`');
+    // 5. التحقق من إرفاق صورة السكن (PNG) مع الأمر
+    const attachedImage = message.attachments.first();
+
+    if (!member || !tierLevel || !minecraftName || !gameMode || !attachedImage) {
+        return message.reply('❌ صيغة الأمر غير صحيحة أو نسيت إرفاق صورة السكن!\nيجب إرفاق صورة (PNG) مع الأمر هكذا:\n`!test Alpha_Craft @RobotStudio LT5 Vanilla` (مع رفع صورة السكن في نفس رسالة الأمر)');
     }
-    // آيدي روم النتائج (ضع آيدي رومك هنا)
+
+    // رابط الصورة المرفقة التي رفعها المستخدم
+    const skinUrl = attachedImage.url;
+
+    // آيدي روم النتائج
     const resultsChannelId = '1535779240719556618'; 
     const resultsChannel = message.guild.channels.cache.get(resultsChannelId);
 
@@ -60,7 +67,7 @@ client.on('messageCreate', async message => {
         return message.reply(`⚠️ الرتبة **${tierLevel}** غير موجودة في رتب السيرفر!`);
     }
 
-    // تصميم الـ Embed (الاسم وسكن ماينكرافت الحقيقي + منشن ديسكورد)
+    // تصميم الـ Embed مع صورة السكن المرفقة
     const resultEmbed = new EmbedBuilder()
         .setColor('#00FFCC')
         .setTitle('⚡ SpeedTiers - نتيجة اختبار جديدة')
@@ -70,15 +77,15 @@ client.on('messageCreate', async message => {
             { name: '⚔️ النمط', value: `**${gameMode}**`, inline: true },
             { name: '🛡️ المختبر المسؤول', value: `${message.author}`, inline: false }
         )
-        .setImage(`https://mc-heads.net/body/${minecraftName}/150`)
+        .setImage(skinUrl) // استخدام رابط الصورة التي رفَعها المسؤول
         .setTimestamp()
         .setFooter({ text: 'SpeedTiers Testing System' });
 
     await resultsChannel.send({ embeds: [resultEmbed] });
-    message.reply('✅ تم تسجيل النتيجة وسحب السكن وإعطاء الرتبة بنجاح!');
+
     // إرسال البيانات لسيرفر الـ Backend لتظهر في الموقع
     try {
-        await fetch('http://localhost:3000/api/results', {
+        await fetch('http://127.0.0.1:8080/api/results', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -86,13 +93,15 @@ client.on('messageCreate', async message => {
                 tierLevel,
                 gameMode,
                 tester: message.author.tag,
-                date: new Date().toISOString()
+                date: new Date().toISOString(),
+                skinUrl // حفظنا رابط السكن أيضاً إذا أردت عرضه في الموقع مستقبلاً
             })
         });
+        message.reply('✅ تم تسجيل النتيجة وسحب السكن المرفق وإعطاء الرتبة وحفظها في الموقع بنجاح!');
     } catch (err) {
         console.error('فشل إرسال البيانات للموقع:', err);
+        message.reply('⚠️ تم إعطاء الرتبة وتسجيل الديسكورد، ولكن حدث خطأ في تحديث الموقع.');
     }
-
-    message.reply('✅ تم تسجيل النتيجة وإعطاء الرتبة وحفظها في الموقع بنجاح!');
 });
-client.login(process.env.TOKEN);
+
+client.login(process.env.DISCORD_TOKEN);
