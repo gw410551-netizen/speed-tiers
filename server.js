@@ -75,8 +75,13 @@ app.post('/api/results', async (req, res) => {
 app.use(express.static('public'));
 
 const PORT = process.env.PORT || 8080;
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
-    // تشغيل البوت تلقائياً مع السيرفر ليعملا معاً باستقرار تام
+    // لا تستخدم require، بل قم بتشغيل البوت مباشرة هنا
     require('./index.js');
 });
+
+// إضافة "حافظ للنشاط" لمنع Railway من إغلاق الحاوية
+setInterval(() => {
+    console.log("System Status: Alive and Running...");
+}, 300000); // يطبع رسالة كل 5 دقائق ليخبر Railway أن السيرفر نشط جداً
