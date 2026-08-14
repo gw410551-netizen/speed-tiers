@@ -253,16 +253,18 @@
         };
 
     // قم بتغيير السطر القديم إلى هذا السطر الجديد
-fetch('/api/results')
-    .then(res => res.json())
-    .then(data => {
-        allResults = data;
-        sortAndRender(currentMode);
-    })
-    .catch(err => {
-        console.error("خطأ في جلب البيانات:", err);
-        // يمكنك إضافة تنبيه بسيط هنا إذا أردت
-    });
+// استبدل رابط الـ API بهذا الرابط المباشر من غيت هاب (Raw)
+// قم بتحديث الجزء الخاص بالـ fetch ليصبح هكذا تماماً:
+    fetch('https://raw.githubusercontent.com/gw410551-netizen/speed-tiers/main/results.json')
+        .then(res => res.json())
+        .then(data => {
+            allResults = data; // تخزين البيانات في المتغير العام
+            sortAndRender(currentMode); // عرض البيانات تلقائياً عند فتح الموقع
+        })
+        .catch(err => {
+            console.error('خطأ في جلب البيانات:', err);
+            document.querySelector('#resultsTable tbody').innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 20px;">حدث خطأ في تحميل البيانات.</td></tr>`;
+        });
 
         function renderTable(data) {
             const tbody = document.querySelector('#resultsTable tbody');
