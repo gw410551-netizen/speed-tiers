@@ -82,16 +82,18 @@ async function syncResultsToGitHub(data) {
     const url = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
 
     try {
-        const { data: fileData } = await axios.get(url, { 
+        // جلب الـ SHA الأحدث للملف قبل التحديث
+        const response = await axios.get(url, { 
             headers: { Authorization: `token ${token}` } 
         });
 
         await axios.put(url, {
             message: 'Update results.json automatically',
             content: Buffer.from(JSON.stringify(data, null, 2)).toString('base64'),
-            sha: fileData.sha 
+            sha: response.data.sha // استخدام الـ SHA المستلم
         }, { headers: { Authorization: `token ${token}` } });
         
+        console.log("تم التحديث بنجاح على GitHub");
     } catch (err) { 
         console.error('GitHub Sync Error:', err.message); 
     }
