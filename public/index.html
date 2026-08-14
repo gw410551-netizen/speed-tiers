@@ -253,17 +253,14 @@
         };
 
         // جلب البيانات مع منع تخزين الكاش (Cache) عبر إضافة رقم عشوائي
-        fetch('https://raw.githubusercontent.com/gw410551-netizen/speed-tiers/main/results.json?t=' + new Date().getTime())
-            .then(res => res.json())
-            .then(data => {
-                console.log("البيانات المستلمة:", data);
-                allResults = data;
-                sortAndRender(currentMode);
-            })
-            .catch(err => {
-                console.error('خطأ في جلب البيانات:', err);
-                document.querySelector('#resultsTable tbody').innerHTML = `<tr><td colspan="5" style="text-align: center; color: #ff5555; padding: 20px;">خطأ في تحميل البيانات من غيت هاب.</td></tr>`;
-            });
+        // إضافة رقم عشوائي متغير يضمن عدم حفظ الكاش نهائياً
+fetch('https://raw.githubusercontent.com/gw410551-netizen/speed-tiers/main/results.json?' + new Date().getTime())
+    .then(res => res.json())
+    .then(data => {
+        allResults = data;
+        sortAndRender(currentMode);
+    })
+    .catch(err => console.error('خطأ في جلب البيانات:', err));
 
         function renderTable(data) {
             const tbody = document.querySelector('#resultsTable tbody');
