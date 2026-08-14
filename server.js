@@ -9,6 +9,7 @@ app.use(express.json());
 app.use(cors());
 
 const DB_FILE = './results.json';
+const PORT = process.env.PORT || 8080;
 
 // --- إعدادات بوت الديسكورد ---
 const client = new Client({
@@ -19,7 +20,6 @@ const client = new Client({
     ]
 });
 
-// استخدام clientReady لتجنب تحذيرات الإصدارات الحديثة
 client.once('clientReady', () => {
     console.log(`Logged in as ${client.user.tag}! 🚀`);
 });
@@ -29,7 +29,7 @@ client.on('messageCreate', async message => {
 
     if (message.content.startsWith('!test')) {
         try {
-            const response = await axios.post(`http://localhost:${PORT}/api/results`, {
+            await axios.post(`http://localhost:${PORT}/api/results`, {
                 minecraftName: "RobotStudioX",
                 tierLevel: "LT3",
                 gameMode: "Sword",
@@ -116,7 +116,6 @@ app.post('/api/results', async (req, res) => {
 
 app.use(express.static('public'));
 
-const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server is running on port ${PORT}`);
 });
