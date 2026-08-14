@@ -9,7 +9,7 @@
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Cairo', sans-serif; }
         body { background-color: #0b0e14; color: #fff; display: flex; flex-direction: column; align-items: center; min-height: 100vh; padding: 30px 20px; }
         
-        /* الهيدر العلوي يجمع العنوان وزر الديسكورد باحترافية مثل mctiers */
+        /* الهيدر العلوي */
         .main-header {
             width: 100%;
             max-width: 1000px;
@@ -28,7 +28,6 @@
             flex-direction: column;
         }
 
-        /* عنوان الموقع الفخم */
         h1 { 
             color: #ffd700; 
             font-size: 2.3rem; 
@@ -47,7 +46,6 @@
             margin-top: 2px;
         }
 
-        /* زر ديسكورد بنفس سستايل موقع mctiers الفخم */
         .discord-btn {
             background-color: #131822;
             color: #fff;
@@ -126,6 +124,17 @@
             color: #0b0e14;
             border-color: #ffd700;
             box-shadow: 0 0 12px rgba(255,215,0,0.4);
+        }
+
+        /* زر الأوفرول يظهر بشكل مميز ومختلف قليلاً */
+        .gm-btn.overall-btn {
+            background-color: #1a2233;
+            border-color: #ffd700;
+            color: #ffd700;
+        }
+        .gm-btn.overall-btn.active {
+            background-color: #ffd700;
+            color: #0b0e14;
         }
 
         /* صندوق البحث */
@@ -209,7 +218,7 @@
 </head>
 <body>
 
-    <!-- الهيدر المدمج (العنوان وزر الديسكورد بجانبه تماماً مثل mctiers) -->
+    <!-- الهيدر العلوي -->
     <header class="main-header">
         <div class="brand-section">
             <h1>⚡ SpeedTiers Rankings</h1>
@@ -226,7 +235,8 @@
     <!-- شريط الأنماط والبحث -->
     <div class="controls-container">
         <div class="gamemodes-bar">
-            <button class="gm-btn active" onclick="filterGameMode('Sword', this)"><img src="sword.svg"> Sword</button>
+            <button class="gm-btn overall-btn active" onclick="filterGameMode('Overall', this)">🏆 Overall</button>
+            <button class="gm-btn" onclick="filterGameMode('Sword', this)"><img src="sword.svg"> Sword</button>
             <button class="gm-btn" onclick="filterGameMode('Mace', this)"><img src="mace.svg"> Mace</button>
             <button class="gm-btn" onclick="filterGameMode('Vanilla', this)"><img src="vanilla.svg"> Vanilla</button>
             <button class="gm-btn" onclick="filterGameMode('UHC', this)"><img src="uhc.svg"> UHC</button>
@@ -245,23 +255,28 @@
     <div class="table-container">
         <table id="resultsTable">
             <thead>
-                <tr>
-                    <th>#</th>
-                    <th>اللاعب</th>
-                    <th>الرتبة</th>
-                    <th>النمط</th>
-                    <th>التاريخ</th>
+                <tr id="tableHeaders">
+                    <!-- سيتم تحديث العناوين ديناميكياً بناءً على النمط -->
                 </tr>
             </thead>
             <tbody>
-                <!-- النتائج ستُعرض هنا ديناميكياً -->
+                <!-- النتائج -->
             </tbody>
         </table>
     </div>
 
     <script>
         let allResults = [];
-        let currentMode = 'Sword';
+        let currentMode = 'Overall';
+
+        // جدول النقاط بناءً على طلبك
+        const tierPoints = {
+            'HT1': 60, 'LT1': 45, 
+            'HT2': 30, 'LT2': 20, 
+            'HT3': 10, 'LT3': 6, 
+            'HT4': 4,  'LT4': 3, 
+            'HT5': 2,  'LT5': 1
+        };
 
         const tierRanks = {
             'HT1': 1, 'LT1': 2, 'HT2': 3, 'LT2': 4, 
@@ -279,40 +294,83 @@
             })
             .catch(err => console.error('خطأ في جلب البيانات:', err));
 
-        function renderTable(data) {
+        function renderTable(data, mode) {
+            const theadTr = document.getElementById('tableHeaders');
             const tbody = document.querySelector('#resultsTable tbody');
             tbody.innerHTML = '';
-            
-            if(data.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #8a99ad; padding: 30px; font-weight: 600;">لا توجد نتائج مطابقة للبحث أو لهذا النمط.</td></tr>`;
-                return;
-            }
 
-            data.sort((a, b) => {
-                const rankA = tierRanks[(a.tierLevel || '').toUpperCase()] || 99;
-                const rankB = tierRanks[(b.tierLevel || '').toUpperCase()] || 99;
-                return rankA - rankB;
-            });
-
-            data.forEach((item, index) => {
-                const skinHeadUrl = item.skinUrl ? item.skinUrl : `https://mc-heads.net/avatar/Steve/36`;
-                const rankColor = index === 0 ? '#ffd700' : '#d4af37';
-
-                tbody.innerHTML += `
-                    <tr>
-                        <td style="font-weight: 800; color: ${rankColor};">${index + 1}</td>
-                        <td>
-                            <div class="player-cell">
-                                <img src="${skinHeadUrl}" class="player-skin" alt="skin">
-                                <span style="font-weight: 700; font-size: 1rem;">${item.minecraftName}</span>
-                            </div>
-                        </td>
-                        <td><span class="badge">${item.tierLevel}</span></td>
-                        <td><span class="mode-badge">${item.gameMode}</span></td>
-                        <td class="date">${item.date || ''}</td>
-                    </tr>
+            if (mode === 'Overall') {
+                // تصميم جدول الأوفرول (مجموع النقاط)
+                theadTr.innerHTML = `
+                    <th>#</th>
+                    <th>اللاعب</th>
+                    <th>إجمالي النقاط</th>
                 `;
-            });
+
+                if(data.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: #8a99ad; padding: 30px; font-weight: 600;">لا توجد بيانات متاحة لحساب النقاط.</td></tr>`;
+                    return;
+                }
+
+                data.forEach((player, index) => {
+                    const skinHeadUrl = player.skinUrl ? player.skinUrl : `https://mc-heads.net/avatar/Steve/36`;
+                    const rankColor = index === 0 ? '#ffd700' : '#d4af37';
+
+                    tbody.innerHTML += `
+                        <tr>
+                            <td style="font-weight: 800; color: ${rankColor};">${index + 1}</td>
+                            <td>
+                                <div class="player-cell">
+                                    <img src="${skinHeadUrl}" class="player-skin" alt="skin">
+                                    <span style="font-weight: 700; font-size: 1rem;">${player.name}</span>
+                                </div>
+                            </td>
+                            <td><span class="badge" style="background: #1f293d; color: #ffd700;">⚡ ${player.totalPoints} نقطة</span></td>
+                        </tr>
+                    `;
+                });
+
+            } else {
+                // تصميم جدول الأنماط الفردية العادي
+                theadTr.innerHTML = `
+                    <th>#</th>
+                    <th>اللاعب</th>
+                    <th>الرتبة</th>
+                    <th>النمط</th>
+                    <th>التاريخ</th>
+                `;
+
+                if(data.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #8a99ad; padding: 30px; font-weight: 600;">لا توجد نتائج مطابقة للبحث أو لهذا النمط.</td></tr>`;
+                    return;
+                }
+
+                data.sort((a, b) => {
+                    const rankA = tierRanks[(a.tierLevel || '').toUpperCase()] || 99;
+                    const rankB = tierRanks[(b.tierLevel || '').toUpperCase()] || 99;
+                    return rankA - rankB;
+                });
+
+                data.forEach((item, index) => {
+                    const skinHeadUrl = item.skinUrl ? item.skinUrl : `https://mc-heads.net/avatar/Steve/36`;
+                    const rankColor = index === 0 ? '#ffd700' : '#d4af37';
+
+                    tbody.innerHTML += `
+                        <tr>
+                            <td style="font-weight: 800; color: ${rankColor};">${index + 1}</td>
+                            <td>
+                                <div class="player-cell">
+                                    <img src="${skinHeadUrl}" class="player-skin" alt="skin">
+                                    <span style="font-weight: 700; font-size: 1rem;">${item.minecraftName}</span>
+                                </div>
+                            </td>
+                            <td><span class="badge">${item.tierLevel}</span></td>
+                            <td><span class="mode-badge">${item.gameMode}</span></td>
+                            <td class="date">${item.date || ''}</td>
+                        </tr>
+                    `;
+                });
+            }
         }
 
         function filterGameMode(mode, btnElement) {
@@ -324,20 +382,74 @@
         }
 
         function sortAndRender(mode) {
-            const filtered = allResults.filter(item => 
-                item.gameMode && item.gameMode.trim().toLowerCase() === mode.trim().toLowerCase()
-            );
-            renderTable(filtered);
+            if (mode === 'Overall') {
+                // تجميع النقاط لكل لاعب عبر كل الأنماط
+                const playerMap = {};
+                
+                allResults.forEach(item => {
+                    if (!item.minecraftName) return;
+                    const name = item.minecraftName.trim();
+                    const tier = (item.tierLevel || '').toUpperCase();
+                    const points = tierPoints[tier] || 0;
+
+                    if (!playerMap[name]) {
+                        playerMap[name] = {
+                            name: name,
+                            totalPoints: 0,
+                            skinUrl: item.skinUrl || ''
+                        };
+                    }
+                    playerMap[name].totalPoints += points;
+                    if(item.skinUrl && !playerMap[name].skinUrl) {
+                        playerMap[name].skinUrl = item.skinUrl;
+                    }
+                });
+
+                // تحويل الكائن إلى مصفوفة وترتيبها تنازلياً حسب مجموع النقاط
+                const playersArray = Object.values(playerMap);
+                playersArray.sort((a, b) => b.totalPoints - a.totalPoints);
+
+                renderTable(playersArray, 'Overall');
+            } else {
+                const filtered = allResults.filter(item => 
+                    item.gameMode && item.gameMode.trim().toLowerCase() === mode.trim().toLowerCase()
+                );
+                renderTable(filtered, mode);
+            }
         }
 
         function handleSearch() {
             const query = document.getElementById('searchInput').value.trim().toLowerCase();
-            const filtered = allResults.filter(item => {
-                const matchesMode = item.gameMode && item.gameMode.trim().toLowerCase() === currentMode.trim().toLowerCase();
-                const matchesName = item.minecraftName && item.minecraftName.toLowerCase().includes(query);
-                return matchesMode && matchesName;
-            });
-            renderTable(filtered);
+            
+            if (currentMode === 'Overall') {
+                // إعادة حساب الأوفرول وتصفية النتائج بالبحث
+                const playerMap = {};
+                allResults.forEach(item => {
+                    if (!item.minecraftName) return;
+                    const name = item.minecraftName.trim();
+                    if (!name.toLowerCase().includes(query)) return;
+
+                    const tier = (item.tierLevel || '').toUpperCase();
+                    const points = tierPoints[tier] || 0;
+
+                    if (!playerMap[name]) {
+                        playerMap[name] = { name: name, totalPoints: 0, skinUrl: item.skinUrl || '' };
+                    }
+                    playerMap[name].totalPoints += points;
+                    if(item.skinUrl && !playerMap[name].skinUrl) { playerMap[name].skinUrl = item.skinUrl; }
+                });
+
+                const playersArray = Object.values(playerMap);
+                playersArray.sort((a, b) => b.totalPoints - a.totalPoints);
+                renderTable(playersArray, 'Overall');
+            } else {
+                const filtered = allResults.filter(item => {
+                    const matchesMode = item.gameMode && item.gameMode.trim().toLowerCase() === currentMode.trim().toLowerCase();
+                    const matchesName = item.minecraftName && item.minecraftName.toLowerCase().includes(query);
+                    return matchesMode && matchesName;
+                });
+                renderTable(filtered, currentMode);
+            }
         }
     </script>
 </body>
