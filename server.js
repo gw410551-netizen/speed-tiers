@@ -20,7 +20,7 @@ const client = new Client({
     ]
 });
 
-client.once('clientReady', () => {
+client.once('ready', () => {
     console.log(`Logged in as ${client.user.tag}! 🚀`);
 });
 
@@ -29,12 +29,22 @@ client.on('messageCreate', async message => {
 
     if (message.content.startsWith('!test')) {
         try {
+            const args = message.content.split(' ').slice(1);
+            
+            if (args.length < 3) {
+                return message.reply('❌ الاستخدام الصحيح: `!test [الاسم] [الرتبة] [الجيم مود]` مع إرفاق صورة السكن.');
+            }
+
+            // التقاط رابط الصورة المرفقة إذا وجدت، وإلا صورة افتراضية
+            const attachment = message.attachments.first();
+            const skinUrl = attachment ? attachment.url : "https://i.imgur.com/k2Lh4sC.png";
+
             const newResult = {
-                minecraftName: "RobotStudioX",
-                tierLevel: "HT3", // أو استخراجها من أمر المستخدم
-                gameMode: "Sword",
+                minecraftName: args[0],
+                tierLevel: args[1],
+                gameMode: args.slice(2).join(' '),
                 tester: message.author.username,
-                skinUrl: "https://minotar.net/avatar/RobotStudioX",
+                skinUrl: skinUrl,
                 date: new Date().toISOString().split('T')[0]
             };
 
@@ -54,91 +64,50 @@ client.on('messageCreate', async message => {
                 results.unshift(newResult);
             }
 
-            // حفظ محلياً وتحديث غيت هاب
             fs.writeFileSync(DB_FILE, JSON.stringify(results, null, 2));
             await syncResultsToGitHub(results);
             
-            message.reply('تم إعطاء الرتبة وتحديث الموقع بنجاح!');
+            message.reply(`✅ تم تسجيل نتيجة **${newResult.minecraftName}** بنجاح وتحديث الموقع!`);
         } catch (err) {
-            message.reply('حدث خطأ أثناء تحديث الموقع: ' + err.message);
+            message.reply('❌ حدث خطأ: ' + err.message);
         }
     }
 });
 
 if (process.env.DISCORD_TOKEN) {
     client.login(process.env.DISCORD_TOKEN);
-} else {
-    console.error("DISCORD_TOKEN is missing in environment variables!");
 }
 
-// --- دالة مزامنة النتائج مع GitHub ---
+// --- دالة المزامنة مع GitHub ---
 async function syncResultsToGitHub(data) {
     const token = process.env.GITHUB_TOKEN;
-    if (!token) {
-        console.error("GITHUB_TOKEN is missing!");
-        return;
-    }
+    if (!token) return;
     
-    const owner = 'gw410551-netizen'; 
-    const repo = 'speed-tiers'; 
-    const path = 'results.json';
-    const url = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`; // <-- تم تعريف url هنا بوضوح
+    const url = `https://api.github.com/repos/gw410551-netizen/speed-tiers/contents/results.json`;
 
     try {
-        // 1. جلب الـ SHA الحالي للملف من على غيت هاب
-        const response = await axios.get(url, { 
-            headers: { Authorization: `token ${token}` } 
-        });
-        const currentSha = response.data.sha;
-
-        // 2. تحديث الملف على غيت هاب مباشرة
+        const response = await axios.get(url, { headers: { Authorization: `token ${token}` } });
         await axios.put(url, {
             message: 'Update results.json automatically',
             content: Buffer.from(JSON.stringify(data, null, 2)).toString('base64'),
-            sha: currentSha
+            sha: response.data.sha
         }, { headers: { Authorization: `token ${token}` } });
-        
-        console.log("تم التحديث بنجاح على GitHub");
-    } catch (err) { 
-        console.error('GitHub Sync Error details:', err.response?.data || err.message); 
+    } catch (err) {
+        console.error('GitHub Sync Error:', err.message);
     }
 }
 
 // --- مسارات الـ API للموقع ---
-app.get('/api/results', (req, res) => {
-    if (!fs.existsSync(DB_FILE)) {
-        return res.json([]);
+app.get('/api/results', async (req, res) => {
+    try {
+        const response = await axios.get(`https://api.github.com/repos/gw410551-netizen/speed-tiers/contents/results.json`, {
+            headers: process.env.GITHUB_TOKEN ? { Authorization: `token ${process.env.GITHUB_TOKEN}` } : {}
+        });
+        const data = JSON.parse(Buffer.from(response.data.content, 'base64').toString('utf8'));
+        res.json(data);
+    } catch (err) {
+        res.json(fs.existsSync(DB_FILE) ? JSON.parse(fs.readFileSync(DB_FILE, 'utf8')) : []);
     }
-    const data = JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
-    res.json(data);
-});
-
-app.post('/api/results', async (req, res) => {
-    const newResult = req.body;
-    let results = [];
-    
-    if (fs.existsSync(DB_FILE)) {
-        results = JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
-    }
-    
-    const existingIndex = results.findIndex(item => 
-        item.minecraftName.toLowerCase() === newResult.minecraftName.toLowerCase() &&
-        item.gameMode.toLowerCase() === newResult.gameMode.toLowerCase()
-    );
-
-    if (existingIndex !== -1) {
-        results[existingIndex].tierLevel = newResult.tierLevel;
-        results[existingIndex].date = newResult.date;
-        results[existingIndex].tester = newResult.tester;
-        results[existingIndex].skinUrl = newResult.skinUrl;
-    } else {
-        results.unshift(newResult);
-    }
-    
-    fs.writeFileSync(DB_FILE, JSON.stringify(results, null, 2));
-    await syncResultsToGitHub(results);
-
-    res.json({ success: true, message: 'تم تحديث النتيجة وحفظها في الموقع وغيت هاب بنجاح!' });
 });
 
 app.use(express.static('public'));
