@@ -73,29 +73,24 @@ if (process.env.DISCORD_TOKEN) {
 
 // --- دالة مزامنة النتائج مع GitHub ---
 async function syncResultsToGitHub(data) {
-    const token = process.env.GITHUB_TOKEN;
-    if (!token) return;
-    
-    const owner = 'gw410551-netizen'; 
-    const repo = 'speed-tiers'; 
-    const path = 'results.json';
-    const url = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
-
+    // ... (الكود السابق)
     try {
-        // جلب الـ SHA الأحدث للملف قبل التحديث
+        // اجلب الـ SHA الأحدث مباشرة قبل التحديث (لضمان المزامنة)
         const response = await axios.get(url, { 
             headers: { Authorization: `token ${token}` } 
         });
+        const currentSha = response.data.sha;
 
         await axios.put(url, {
             message: 'Update results.json automatically',
             content: Buffer.from(JSON.stringify(data, null, 2)).toString('base64'),
-            sha: response.data.sha // استخدام الـ SHA المستلم
+            sha: currentSha // نستخدم الـ SHA الذي جلبناه للتو
         }, { headers: { Authorization: `token ${token}` } });
         
         console.log("تم التحديث بنجاح على GitHub");
     } catch (err) { 
-        console.error('GitHub Sync Error:', err.message); 
+        // أضف هذا السطر لتعرف لماذا يفشل التحديث بالضبط
+        console.error('GitHub Sync Error details:', err.response?.data || err.message); 
     }
 }
 
