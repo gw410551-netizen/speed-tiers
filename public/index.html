@@ -252,12 +252,17 @@
             'HT5': 9, 'LT5': 10
         };
 
-        fetch('https://speed-tiers-discordtoken.up.railway.app/api/results')
-  .then(res => res.json())
-  .then(data => {
-                allResults = data;
-                sortAndRender(currentMode);
-            });
+    // قم بتغيير السطر القديم إلى هذا السطر الجديد
+fetch('/api/results')
+    .then(res => res.json())
+    .then(data => {
+        allResults = data;
+        sortAndRender(currentMode);
+    })
+    .catch(err => {
+        console.error("خطأ في جلب البيانات:", err);
+        // يمكنك إضافة تنبيه بسيط هنا إذا أردت
+    });
 
         function renderTable(data) {
             const tbody = document.querySelector('#resultsTable tbody');
