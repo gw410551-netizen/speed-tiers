@@ -88,11 +88,3 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
 });
-// في ملف index.js للبوت
-const API_URL = process.env.API_URL || 'https://speed-tiers-discordtoken.up.railway.app';
-
-await fetch(`${API_URL}/api/results`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ... })
-});
