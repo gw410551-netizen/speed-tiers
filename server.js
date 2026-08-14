@@ -19,18 +19,16 @@ const client = new Client({
     ]
 });
 
-client.once('ready', () => {
+// استخدام clientReady لتجنب تحذيرات الإصدارات الحديثة
+client.once('clientReady', () => {
     console.log(`Logged in as ${client.user.tag}! 🚀`);
 });
 
-// هنا يمكنك وضع كود أوامر البوت الخاصة بك (مثل !test وغيرها)
 client.on('messageCreate', async message => {
     if (message.author.bot) return;
 
-    // مثال لأمر !test للإرسال للسيرفر محلياً
     if (message.content.startsWith('!test')) {
         try {
-            // إرسال الطلب مباشرة لسيرفر الـ Express المحلي
             const response = await axios.post(`http://localhost:${PORT}/api/results`, {
                 minecraftName: "RobotStudioX",
                 tierLevel: "LT3",
@@ -47,7 +45,6 @@ client.on('messageCreate', async message => {
     }
 });
 
-// تسجيل دخول البوت باستخدام التوكن من متغيرات البيئة
 if (process.env.DISCORD_TOKEN) {
     client.login(process.env.DISCORD_TOKEN);
 } else {
@@ -89,8 +86,8 @@ app.get('/api/results', (req, res) => {
     res.json(data);
 });
 
-app.post('/api/results', async (resq, res) => {
-    const newResult = resq.body;
+app.post('/api/results', async (req, res) => {
+    const newResult = req.body;
     let results = [];
     
     if (fs.existsSync(DB_FILE)) {
@@ -120,6 +117,6 @@ app.post('/api/results', async (resq, res) => {
 app.use(express.static('public'));
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server is running on port ${PORT}`);
 });
