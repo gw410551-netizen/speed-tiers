@@ -73,23 +73,33 @@ if (process.env.DISCORD_TOKEN) {
 
 // --- دالة مزامنة النتائج مع GitHub ---
 async function syncResultsToGitHub(data) {
-    // ... (الكود السابق)
+    const token = process.env.GITHUB_TOKEN;
+    if (!token) {
+        console.error("GITHUB_TOKEN is missing!");
+        return;
+    }
+    
+    const owner = 'gw410551-netizen'; 
+    const repo = 'speed-tiers'; 
+    const path = 'results.json';
+    const url = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`; // <-- تم تعريف url هنا بوضوح
+
     try {
-        // اجلب الـ SHA الأحدث مباشرة قبل التحديث (لضمان المزامنة)
+        // 1. جلب الـ SHA الحالي للملف من على غيت هاب
         const response = await axios.get(url, { 
             headers: { Authorization: `token ${token}` } 
         });
         const currentSha = response.data.sha;
 
+        // 2. تحديث الملف على غيت هاب مباشرة
         await axios.put(url, {
             message: 'Update results.json automatically',
             content: Buffer.from(JSON.stringify(data, null, 2)).toString('base64'),
-            sha: currentSha // نستخدم الـ SHA الذي جلبناه للتو
+            sha: currentSha
         }, { headers: { Authorization: `token ${token}` } });
         
         console.log("تم التحديث بنجاح على GitHub");
     } catch (err) { 
-        // أضف هذا السطر لتعرف لماذا يفشل التحديث بالضبط
         console.error('GitHub Sync Error details:', err.response?.data || err.message); 
     }
 }
