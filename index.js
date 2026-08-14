@@ -1,5 +1,6 @@
 const { Client, GatewayIntentBits, EmbedBuilder } = require('discord.js');
 require('dotenv').config();
+
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
@@ -29,7 +30,7 @@ client.on('messageCreate', async message => {
     const foundMode = args.find(arg => validModes.includes(arg.toLowerCase()));
     const gameMode = foundMode ? foundMode.charAt(0).toUpperCase() + foundMode.slice(1).toLowerCase() : '';
 
-    // 4. استخراج اسم ماينكرافت (الكلمة التي ليست منشن وليست رتبة وليست جيم مود)
+    // 4. استخراج اسم ماينكرافت
     const minecraftName = args.find(arg => 
         !arg.includes('@') && 
         !validTiers.includes(arg.toUpperCase()) && 
@@ -43,10 +44,7 @@ client.on('messageCreate', async message => {
         return message.reply('❌ صيغة الأمر غير صحيحة أو نسيت إرفاق صورة السكن!\nيجب إرفاق صورة (PNG) مع الأمر هكذا:\n`!test Alpha_Craft @RobotStudio LT5 Vanilla` (مع رفع صورة السكن في نفس رسالة الأمر)');
     }
 
-    // رابط الصورة المرفقة التي رفعها المستخدم
     const skinUrl = attachedImage.url;
-
-    // آيدي روم النتائج
     const resultsChannelId = '1535779240719556618'; 
     const resultsChannel = message.guild.channels.cache.get(resultsChannelId);
 
@@ -67,7 +65,7 @@ client.on('messageCreate', async message => {
         return message.reply(`⚠️ الرتبة **${tierLevel}** غير موجودة في رتب السيرفر!`);
     }
 
-    // تصميم الـ Embed مع صورة السكن المرفقة
+    // تصميم الـ Embed
     const resultEmbed = new EmbedBuilder()
         .setColor('#00FFCC')
         .setTitle('⚡ SpeedTiers - نتيجة اختبار جديدة')
@@ -77,15 +75,17 @@ client.on('messageCreate', async message => {
             { name: '⚔️ النمط', value: `**${gameMode}**`, inline: true },
             { name: '🛡️ المختبر المسؤول', value: `${message.author}`, inline: false }
         )
-        .setImage(skinUrl) // استخدام رابط الصورة التي رفَعها المسؤول
+        .setImage(skinUrl)
         .setTimestamp()
         .setFooter({ text: 'SpeedTiers Testing System' });
 
     await resultsChannel.send({ embeds: [resultEmbed] });
 
-    // إرسال البيانات لسيرفر الـ Backend لتظهر في الموقع
+    // إرسال البيانات لسيرفر الـ Backend عبر الرابط المعرف في متغيرات البيئة أو الرابط المباشر
     try {
-        await fetch('http://localhost:3000/api/results', {
+        const API_URL = process.env.API_URL || 'https://speed-tiers-discordtoken.up.railway.app';
+        
+        await fetch(`${API_URL}/api/results`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -94,12 +94,12 @@ client.on('messageCreate', async message => {
                 gameMode,
                 tester: message.author.tag,
                 date: new Date().toISOString(),
-                skinUrl // حفظنا رابط السكن أيضاً إذا أردت عرضه في الموقع مستقبلاً
+                skinUrl
             })
         });
         message.reply('✅ تم تسجيل النتيجة وسحب السكن المرفق وإعطاء الرتبة وحفظها في الموقع بنجاح!');
     } catch (err) {
-        console.error('فشل إرسال البيانات للموقع:', err);
+        console.error('فشل إرسال البيانات للموقع:', err.message);
         message.reply('⚠️ تم إعطاء الرتبة وتسجيل الديسكورد، ولكن حدث خطأ في تحديث الموقع.');
     }
 });
