@@ -12,7 +12,7 @@
         /* الهيدر العلوي */
         .main-header {
             width: 100%;
-            max-width: 1050px;
+            max-width: 1100px;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -75,10 +75,10 @@
             fill: #fff;
         }
 
-        /* حاوية الأنماط والبحث المطابقة لـ MCTiers */
+        /* حاوية الأنماط والبحث */
         .controls-container {
             width: 100%;
-            max-width: 1050px;
+            max-width: 1100px;
             display: flex;
             flex-direction: column;
             gap: 20px;
@@ -99,13 +99,8 @@
             scrollbar-color: #2a364d #111622;
         }
 
-        .gamemodes-bar::-webkit-scrollbar {
-            height: 6px;
-        }
-        .gamemodes-bar::-webkit-scrollbar-thumb {
-            background-color: #2a364d;
-            border-radius: 10px;
-        }
+        .gamemodes-bar::-webkit-scrollbar { height: 6px; }
+        .gamemodes-bar::-webkit-scrollbar-thumb { background-color: #2a364d; border-radius: 10px; }
 
         .gm-btn {
             background-color: transparent;
@@ -135,46 +130,21 @@
             transition: opacity 0.2s;
         }
 
-        .gm-btn:hover {
-            color: #fff;
-            background-color: rgba(255, 255, 255, 0.03);
-        }
+        .gm-btn:hover { color: #fff; background-color: rgba(255, 255, 255, 0.03); }
+        .gm-btn:hover img { opacity: 1; }
 
-        .gm-btn:hover img {
-            opacity: 1;
-        }
-
-        /* النمط النشط (Active) */
         .gm-btn.active {
             background-color: #1a2233;
             color: #fff;
             box-shadow: 0 4px 15px rgba(0,0,0,0.4);
             border: 1px solid rgba(255,215,0,0.15);
         }
+        .gm-btn.active img { opacity: 1; }
+        .gm-btn.overall-btn.active { color: #ffd700; border-color: rgba(255,215,0,0.4); }
 
-        .gm-btn.active img {
-            opacity: 1;
-        }
-
-        /* تلوين تميز زر الأوفرول عند التفعيل */
-        .gm-btn.overall-btn.active {
-            color: #ffd700;
-            border-color: rgba(255,215,0,0.4);
-        }
-
-        /* شريط البحث العلوي السفلي للتحكم */
-        .search-filter-row {
-            display: flex;
-            justify-content: flex-end;
-            width: 100%;
-        }
-
-        .search-box {
-            position: relative;
-            width: 100%;
-            max-width: 320px;
-        }
-
+        .search-filter-row { display: flex; justify-content: flex-end; width: 100%; }
+        .search-box { position: relative; width: 100%; max-width: 320px; }
+        
         .search-box input {
             width: 100%;
             background-color: #131822;
@@ -189,25 +159,13 @@
             box-shadow: 0 4px 15px rgba(0,0,0,0.2);
         }
 
-        .search-box input:focus {
-            border-color: #ffd700;
-            box-shadow: 0 0 12px rgba(255,215,0,0.25);
-        }
-
-        .search-box::before {
-            content: "🔍";
-            position: absolute;
-            left: 16px;
-            top: 50%;
-            transform: translateY(-50%);
-            font-size: 0.9rem;
-            opacity: 0.7;
-        }
+        .search-box input:focus { border-color: #ffd700; box-shadow: 0 0 12px rgba(255,215,0,0.25); }
+        .search-box::before { content: "🔍"; position: absolute; left: 16px; top: 50%; transform: translateY(-50%); font-size: 0.9rem; opacity: 0.7; }
 
         /* الجدول الاحترافي */
         .table-container { 
             width: 100%; 
-            max-width: 1050px; 
+            max-width: 1100px; 
             background: #131822; 
             border-radius: 14px; 
             overflow: hidden; 
@@ -216,7 +174,7 @@
         }
         
         table { width: 100%; border-collapse: collapse; text-align: right; }
-        th, td { padding: 16px 22px; }
+        th, td { padding: 16px 20px; }
         
         th { 
             background-color: #1a2233; 
@@ -245,6 +203,38 @@
         
         .mode-badge { background: #2a364d; color: #fff; padding: 6px 14px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; }
         .date { color: #8a99ad; font-size: 0.85rem; font-weight: 600; }
+
+        /* تنسيق أيقونات ورتب الجيم مودز بجانب اللاعب في الأوفرول (على طراز MCTiers) */
+        .player-tiers-container {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .tier-item-box {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: #172030;
+            padding: 5px 8px;
+            border-radius: 8px;
+            border: 1px solid #232f45;
+            min-width: 45px;
+        }
+
+        .tier-item-box img {
+            width: 18px;
+            height: 18px;
+            object-fit: contain;
+            margin-bottom: 3px;
+        }
+
+        .tier-item-box span {
+            font-size: 0.75rem;
+            font-weight: 800;
+            color: #ffd700;
+        }
     </style>
 </head>
 <body>
@@ -263,9 +253,8 @@
         </a>
     </header>
 
-    <!-- منطقة التحكم والبحث بالشكل المنحني الجديد -->
+    <!-- منطقة التحكم والبحث -->
     <div class="controls-container">
-        <!-- شريط الأنماط المنحني (Pill Bar) -->
         <div class="gamemodes-bar">
             <button class="gm-btn overall-btn active" onclick="filterGameMode('Overall', this)"><img src="overall.svg"> Overall</button>
             <button class="gm-btn" onclick="filterGameMode('Sword', this)"><img src="sword.svg"> Sword</button>
@@ -278,7 +267,6 @@
             <button class="gm-btn" onclick="filterGameMode('Axe', this)"><img src="axe.svg"> Axe</button>
         </div>
 
-        <!-- خانة البحث بالأسفل أو بجانبها -->
         <div class="search-filter-row">
             <div class="search-box">
                 <input type="text" id="searchInput" placeholder="ابحث عن اسم اللاعب..." oninput="handleSearch()">
@@ -304,7 +292,19 @@
         let allResults = [];
         let currentMode = 'Overall';
 
-        // جدول النقاط
+        // قائمة الجيم مودز وأيقوناتها المطابقة
+        const gameModesList = ['Sword', 'Mace', 'Vanilla', 'UHC', 'Pot', 'NethOP', 'SMP', 'Axe'];
+        const modeIcons = {
+            'sword': 'sword.svg',
+            'mace': 'mace.svg',
+            'vanilla': 'vanilla.svg',
+            'uhc': 'uhc.svg',
+            'pot': 'pot.svg',
+            'nethop': 'nethop.svg',
+            'smp': 'smp.svg',
+            'axe': 'axe.svg'
+        };
+
         const tierPoints = {
             'HT1': 60, 'LT1': 45, 
             'HT2': 30, 'LT2': 20, 
@@ -319,7 +319,7 @@
             'HT5': 9, 'LT5': 10
         };
 
-        // جلب البيانات مع منع الكاش نهائياً
+        // جلب البيانات مع منع الكاش
         fetch('https://raw.githubusercontent.com/gw410551-netizen/speed-tiers/main/results.json?v=' + Date.now(), { cache: 'no-store' })
             .then(res => res.json())
             .then(data => {
@@ -338,7 +338,7 @@
                 theadTr.innerHTML = `
                     <th>#</th>
                     <th>اللاعب</th>
-                    <th>إجمالي النقاط</th>
+                    <th>إجمالي النقاط والرتب</th>
                 `;
 
                 if(data.length === 0) {
@@ -350,6 +350,23 @@
                     const skinHeadUrl = player.skinUrl ? player.skinUrl : `https://mc-heads.net/avatar/Steve/36`;
                     const rankColor = index === 0 ? '#ffd700' : '#d4af37';
 
+                    // بناء خانات الرتب والأيقونات لكل جيم مود حققه اللاعب
+                    let tiersHtml = `<div class="player-tiers-container">`;
+                    gameModesList.forEach(mName => {
+                        const mKey = mName.toLowerCase();
+                        if (player.modes[mKey]) {
+                            const tVal = player.modes[mKey];
+                            const iconFile = modeIcons[mKey] || 'sword.svg';
+                            tiersHtml += `
+                                <div class="tier-item-box" title="${mName}: ${tVal}">
+                                    <img src="${iconFile}" alt="${mName}">
+                                    <span>${tVal}</span>
+                                </div>
+                            `;
+                        }
+                    });
+                    tiersHtml += `</div>`;
+
                     tbody.innerHTML += `
                         <tr>
                             <td style="font-weight: 800; color: ${rankColor};">${index + 1}</td>
@@ -359,7 +376,12 @@
                                     <span style="font-weight: 700; font-size: 1rem;">${player.name}</span>
                                 </div>
                             </td>
-                            <td><span class="badge" style="background: #1f293d; color: #ffd700;">⚡ ${player.totalPoints} نقطة</span></td>
+                            <td>
+                                <div style="display: flex; align-items: center; gap: 20px; flex-wrap: wrap;">
+                                    <span class="badge" style="background: #1f293d; color: #ffd700;">⚡ ${player.totalPoints} نقطة</span>
+                                    ${tiersHtml}
+                                </div>
+                            </td>
                         </tr>
                     `;
                 });
@@ -419,27 +441,42 @@
                 const playerMap = {};
                 
                 allResults.forEach(item => {
-                    if (!item.minecraftName) return;
+                    if (!item.minecraftName || !item.gameMode || !item.tierLevel) return;
                     const name = item.minecraftName.trim();
-                    const tier = (item.tierLevel || '').toUpperCase();
+                    const modeClean = item.gameMode.trim().toLowerCase();
+                    const tier = item.tierLevel.toUpperCase();
                     const points = tierPoints[tier] || 0;
 
                     if (!playerMap[name]) {
                         playerMap[name] = {
                             name: name,
                             totalPoints: 0,
-                            skinUrl: item.skinUrl || ''
+                            skinUrl: item.skinUrl || '',
+                            modes: {}
                         };
                     }
-                    playerMap[name].totalPoints += points;
+                    
+                    // حفظ أفضل أو أحدث تير لكل نمط (هنا يتم حساب النقاط وإسناد التير للنمط الخاص به)
+                    playerMap[name].modes[modeClean] = tier;
+                    
+                    // حساب إجمالي النقاط (مجموع النقاط عبر كل الأنماط)
+                    // ملاحظة: لو اللاعب ليه أكتر من نتيجة في نفس النمط، يمكنك تعديل المنطق حسب رغبتك، هنا بنجمع نقاط الأنماط المختلفة
                     if(item.skinUrl && !playerMap[name].skinUrl) {
                         playerMap[name].skinUrl = item.skinUrl;
                     }
                 });
 
+                // إعادة حساب إجمالي النقاط بدقة لكل لاعب بناءً على الأنماط المسجلة له
                 const playersArray = Object.values(playerMap);
-                playersArray.sort((a, b) => b.totalPoints - a.totalPoints);
+                playersArray.forEach(p => {
+                    let sum = 0;
+                    Object.values(p.modes).forEach(t => {
+                        sum += (tierPoints[t] || 0);
+                    });
+                    p.totalPoints = sum;
+                });
 
+                playersArray.sort((a, b) => b.totalPoints - a.totalPoints);
                 renderTable(playersArray, 'Overall');
             } else {
                 const filtered = allResults.filter(item => 
@@ -455,21 +492,27 @@
             if (currentMode === 'Overall') {
                 const playerMap = {};
                 allResults.forEach(item => {
-                    if (!item.minecraftName) return;
+                    if (!item.minecraftName || !item.gameMode || !item.tierLevel) return;
                     const name = item.minecraftName.trim();
                     if (!name.toLowerCase().includes(query)) return;
 
-                    const tier = (item.tierLevel || '').toUpperCase();
-                    const points = tierPoints[tier] || 0;
+                    const modeClean = item.gameMode.trim().toLowerCase();
+                    const tier = item.tierLevel.toUpperCase();
 
                     if (!playerMap[name]) {
-                        playerMap[name] = { name: name, totalPoints: 0, skinUrl: item.skinUrl || '' };
+                        playerMap[name] = { name: name, totalPoints: 0, skinUrl: item.skinUrl || '', modes: {} };
                     }
-                    playerMap[name].totalPoints += points;
+                    playerMap[name].modes[modeClean] = tier;
                     if(item.skinUrl && !playerMap[name].skinUrl) { playerMap[name].skinUrl = item.skinUrl; }
                 });
 
                 const playersArray = Object.values(playerMap);
+                playersArray.forEach(p => {
+                    let sum = 0;
+                    Object.values(p.modes).forEach(t => { sum += (tierPoints[t] || 0); });
+                    p.totalPoints = sum;
+                });
+
                 playersArray.sort((a, b) => b.totalPoints - a.totalPoints);
                 renderTable(playersArray, 'Overall');
             } else {
