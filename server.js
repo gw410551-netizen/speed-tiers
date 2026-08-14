@@ -29,18 +29,38 @@ client.on('messageCreate', async message => {
 
     if (message.content.startsWith('!test')) {
         try {
-            await axios.post(`http://localhost:${PORT}/api/results`, {
+            const newResult = {
                 minecraftName: "RobotStudioX",
-                tierLevel: "LT3",
+                tierLevel: "HT3", // أو استخراجها من أمر المستخدم
                 gameMode: "Sword",
                 tester: message.author.username,
                 skinUrl: "https://minotar.net/avatar/RobotStudioX",
                 date: new Date().toISOString().split('T')[0]
-            });
+            };
+
+            let results = [];
+            if (fs.existsSync(DB_FILE)) {
+                results = JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
+            }
+
+            const existingIndex = results.findIndex(item => 
+                item.minecraftName.toLowerCase() === newResult.minecraftName.toLowerCase() &&
+                item.gameMode.toLowerCase() === newResult.gameMode.toLowerCase()
+            );
+
+            if (existingIndex !== -1) {
+                results[existingIndex] = newResult;
+            } else {
+                results.unshift(newResult);
+            }
+
+            // حفظ محلياً وتحديث غيت هاب
+            fs.writeFileSync(DB_FILE, JSON.stringify(results, null, 2));
+            await syncResultsToGitHub(results);
             
             message.reply('تم إعطاء الرتبة وتحديث الموقع بنجاح!');
         } catch (err) {
-            message.reply('تم إعطاء الرتبة، ولكن حدث خطأ في تحديث الموقع: ' + err.message);
+            message.reply('حدث خطأ أثناء تحديث الموقع: ' + err.message);
         }
     }
 });
