@@ -252,19 +252,18 @@
             'HT5': 9, 'LT5': 10
         };
 
-    // قم بتغيير السطر القديم إلى هذا السطر الجديد
-// استبدل رابط الـ API بهذا الرابط المباشر من غيت هاب (Raw)
-// قم بتحديث الجزء الخاص بالـ fetch ليصبح هكذا تماماً:
-    fetch('https://raw.githubusercontent.com/gw410551-netizen/speed-tiers/main/results.json')
-        .then(res => res.json())
-        .then(data => {
-            allResults = data; // تخزين البيانات في المتغير العام
-            sortAndRender(currentMode); // عرض البيانات تلقائياً عند فتح الموقع
-        })
-        .catch(err => {
-            console.error('خطأ في جلب البيانات:', err);
-            document.querySelector('#resultsTable tbody').innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 20px;">حدث خطأ في تحميل البيانات.</td></tr>`;
-        });
+        // جلب البيانات مع منع تخزين الكاش (Cache) عبر إضافة رقم عشوائي
+        fetch('https://raw.githubusercontent.com/gw410551-netizen/speed-tiers/main/results.json?t=' + new Date().getTime())
+            .then(res => res.json())
+            .then(data => {
+                console.log("البيانات المستلمة:", data);
+                allResults = data;
+                sortAndRender(currentMode);
+            })
+            .catch(err => {
+                console.error('خطأ في جلب البيانات:', err);
+                document.querySelector('#resultsTable tbody').innerHTML = `<tr><td colspan="5" style="text-align: center; color: #ff5555; padding: 20px;">خطأ في تحميل البيانات من غيت هاب.</td></tr>`;
+            });
 
         function renderTable(data) {
             const tbody = document.querySelector('#resultsTable tbody');
@@ -276,15 +275,13 @@
             }
 
             data.sort((a, b) => {
-                const rankA = tierRanks[a.tierLevel.toUpperCase()] || 99;
-                const rankB = tierRanks[b.tierLevel.toUpperCase()] || 99;
+                const rankA = tierRanks[(a.tierLevel || '').toUpperCase()] || 99;
+                const rankB = tierRanks[(b.tierLevel || '').toUpperCase()] || 99;
                 return rankA - rankB;
             });
 
             data.forEach((item, index) => {
-                const skinHeadUrl = item.skinUrl ? item.skinUrl : `https://mc-heads.net/avatar/${item.minecraftName}/38`;
-                
-                // المركز الأول أصفر ذهبي ساطع (#ffd700)، وباقي المراكز أصفر داكن/برونزي (#d4af37)
+                const skinHeadUrl = item.skinUrl ? item.skinUrl : `https://mc-heads.net/avatar/Steve/38`;
                 const rankColor = index === 0 ? '#ffd700' : '#d4af37';
 
                 tbody.innerHTML += `
@@ -298,7 +295,7 @@
                         </td>
                         <td><span class="badge">${item.tierLevel}</span></td>
                         <td><span class="mode-badge">${item.gameMode}</span></td>
-                        <td class="date">${new Date(item.date).toLocaleDateString('ar-EG')}</td>
+                        <td class="date">${item.date || ''}</td>
                     </tr>
                 `;
             });
