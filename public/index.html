@@ -126,7 +126,7 @@
             box-shadow: 0 0 12px rgba(255,215,0,0.4);
         }
 
-        /* زر الأوفرول يظهر بشكل مميز ومختلف قليلاً */
+        /* تنسيق زر الأوفرول ليتطابق مع الأيقونة الجديدة */
         .gm-btn.overall-btn {
             background-color: #1a2233;
             border-color: #ffd700;
@@ -235,7 +235,8 @@
     <!-- شريط الأنماط والبحث -->
     <div class="controls-container">
         <div class="gamemodes-bar">
-            <button class="gm-btn overall-btn active" onclick="filterGameMode('Overall', this)">🏆 Overall</button>
+            <!-- تمت إضافة أيقونة overall.svg هنا -->
+            <button class="gm-btn overall-btn active" onclick="filterGameMode('Overall', this)"><img src="overall.svg"> Overall</button>
             <button class="gm-btn" onclick="filterGameMode('Sword', this)"><img src="sword.svg"> Sword</button>
             <button class="gm-btn" onclick="filterGameMode('Mace', this)"><img src="mace.svg"> Mace</button>
             <button class="gm-btn" onclick="filterGameMode('Vanilla', this)"><img src="vanilla.svg"> Vanilla</button>
@@ -256,7 +257,7 @@
         <table id="resultsTable">
             <thead>
                 <tr id="tableHeaders">
-                    <!-- سيتم تحديث العناوين ديناميكياً بناءً على النمط -->
+                    <!-- سيتم تحديث العناوين ديناميكياً -->
                 </tr>
             </thead>
             <tbody>
@@ -269,7 +270,7 @@
         let allResults = [];
         let currentMode = 'Overall';
 
-        // جدول النقاط بناءً على طلبك
+        // جدول النقاط
         const tierPoints = {
             'HT1': 60, 'LT1': 45, 
             'HT2': 30, 'LT2': 20, 
@@ -300,7 +301,6 @@
             tbody.innerHTML = '';
 
             if (mode === 'Overall') {
-                // تصميم جدول الأوفرول (مجموع النقاط)
                 theadTr.innerHTML = `
                     <th>#</th>
                     <th>اللاعب</th>
@@ -331,7 +331,6 @@
                 });
 
             } else {
-                // تصميم جدول الأنماط الفردية العادي
                 theadTr.innerHTML = `
                     <th>#</th>
                     <th>اللاعب</th>
@@ -383,7 +382,6 @@
 
         function sortAndRender(mode) {
             if (mode === 'Overall') {
-                // تجميع النقاط لكل لاعب عبر كل الأنماط
                 const playerMap = {};
                 
                 allResults.forEach(item => {
@@ -405,7 +403,6 @@
                     }
                 });
 
-                // تحويل الكائن إلى مصفوفة وترتيبها تنازلياً حسب مجموع النقاط
                 const playersArray = Object.values(playerMap);
                 playersArray.sort((a, b) => b.totalPoints - a.totalPoints);
 
@@ -422,7 +419,6 @@
             const query = document.getElementById('searchInput').value.trim().toLowerCase();
             
             if (currentMode === 'Overall') {
-                // إعادة حساب الأوفرول وتصفية النتائج بالبحث
                 const playerMap = {};
                 allResults.forEach(item => {
                     if (!item.minecraftName) return;
