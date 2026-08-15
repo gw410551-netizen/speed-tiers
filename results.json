@@ -1,5 +1,13 @@
 [
   {
+    "minecraftName": "RobotStudioX",
+    "tierLevel": "LT4",
+    "gameMode": "UHC",
+    "tester": "robotstudiox",
+    "skinUrl": "https://cdn.discordapp.com/attachments/1535779240719556618/1538164011894308914/avatar-face_1.png?ex=6a81ae5e&is=6a805cde&hm=9cf44e5a003aff8b14984ebf007076afea29e67cafd628cf8c3641bb094873f3&",
+    "date": "2026-08-15"
+  },
+  {
     "minecraftName": "AbdalmnamX",
     "tierLevel": "LT4",
     "gameMode": "Sword",
