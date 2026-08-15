@@ -1,6 +1,14 @@
 [
   {
     "minecraftName": "yoyoggking",
+    "tierLevel": "LT4",
+    "gameMode": "SMP",
+    "tester": "robotstudiox",
+    "skinUrl": "https://cdn.discordapp.com/attachments/1535779240719556618/1538289469147316335/yoyoggking.png?ex=6a822335&is=6a80d1b5&hm=996e2c0fe9093d6e49d7298520012e3839115ac5e55251c133156283b9d79035&",
+    "date": "2026-08-15"
+  },
+  {
+    "minecraftName": "yoyoggking",
     "tierLevel": "LT5",
     "gameMode": "UHC",
     "tester": "robotstudiox",
