@@ -211,7 +211,9 @@ client.on('interactionCreate', async interaction => {
         await interaction.followUp({ content: `✅ تم إضافتك لقائمة الانتظار بنجاح! ترتيبك: ${waitlistState.queue.length}`, ephemeral: true });
     }
 
-    // ب. زر سحب الشخص التالي (Next Player) - يقوم بسحب الشخص الأول وطرده من القائمة وصعود البقية
+    // --- داخل interactionCreate ---
+
+    // ب. زر سحب الشخص التالي (Next Player)
     if (interaction.customId === 'next_player') {
         const member = await interaction.guild.members.fetch(interaction.user.id);
         const isTesterRole = member.roles.cache.some(role => role.name === 'Tester');
@@ -224,16 +226,50 @@ client.on('interactionCreate', async interaction => {
             return interaction.reply({ content: '⚠️ قائمة الانتظار فارغة تماماً!', ephemeral: true });
         }
 
-        // سحب أول شخص في القائمة (رقم 1)
-        const nextUser = waitlistState.queue.shift(); // .shift() تحذفه من القائمة وتجيبه (تطرد الأول ليتقدم البقية)
+        const roleName = 'waitlist'; // اسم الرتبة
+        const testRoomId = '1535779432776597566'; // آيدي روم الاختبار
+        const role = interaction.guild.roles.cache.find(r => r.name === roleName);
 
-        // تحديث الرسالة بالأسماء الجديدة بعد الحذف
-        const embed = generateWaitlistEmbed();
-        const components = generateWaitlistComponents();
-        await interaction.update({ embeds: [embed], components: components });
+        if (!role) {
+            return interaction.reply({ content: `❌ لم يتم العثور على رتبة باسم ${roleName}!`, ephemeral: true });
+        }
 
-        // منشن للاعب المسحوب في الشات لكي ينتبه ويبدأ اختباره
-        await interaction.channel.send(`📢 دور اللاعب <@${nextUser.id}> الآن! توجه لروم الاختبار.`);
+        // 1. سحب الشخص الحالي (الذي انتهى اختباره) من القائمة
+        const finishedUser = waitlistState.queue.shift(); 
+
+        // 2. إزالة الرتبة عن الشخص الذي انتهى اختباره
+        try {
+            const finishedMember = await interaction.guild.members.fetch(finishedUser.id);
+            await finishedMember.roles.remove(role);
+        } catch (e) {
+            console.log('لم استطع إزالة الرتبة (ربما غادر السيرفر)');
+        }
+
+        // 3. سحب الشخص الجديد (الذي صار ترتيبه رقم 1)
+        if (waitlistState.queue.length > 0) {
+            const nextUser = waitlistState.queue[0]; // الشخص الجديد في الترتيب
+            
+            try {
+                const nextMember = await interaction.guild.members.fetch(nextUser.id);
+                await nextMember.roles.add(role); // إعطاء الرتبة
+                
+                // تحديث الرسالة
+                const embed = generateWaitlistEmbed();
+                const components = generateWaitlistComponents();
+                await interaction.update({ embeds: [embed], components: components });
+
+                // منشن للاعب الجديد
+                await interaction.channel.send(`📢 دور اللاعب <@${nextUser.id}> الآن! تم منحه صلاحية دخول روم الاختبار.`);
+            } catch (e) {
+                await interaction.reply({ content: '❌ حدث خطأ أثناء إعطاء الرتبة للمستخدم!', ephemeral: true });
+            }
+        } else {
+            // القائمة أصبحت فارغة
+            const embed = generateWaitlistEmbed();
+            const components = generateWaitlistComponents();
+            await interaction.update({ embeds: [embed], components: components });
+            await interaction.channel.send(`✅ انتهت قائمة الانتظار!`);
+        }
     }
 
     // ج. زر إغلاق الاختبار
