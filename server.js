@@ -232,7 +232,7 @@ client.on('interactionCreate', async interaction => {
         await interaction.followUp({ content: `✅ لقد قمت بمغادرة قائمة انتظار **${modeData.name}** بنجاح.`, ephemeral: true });
     }
 
-    // 3. اختبار التالي (Next Player) - يعطي رتبة الجيم مود ويسحبها عن السابق
+    // 3. اختبار التالي (Next Player) - نسخة معدلة
     if (interaction.customId === 'next_player') {
         const member = await interaction.guild.members.fetch(interaction.user.id);
         const isTester = member.roles.cache.some(role => role.name === 'Tester');
@@ -247,36 +247,44 @@ client.on('interactionCreate', async interaction => {
 
         const role = interaction.guild.roles.cache.find(r => r.name === modeData.role);
         if (!role) {
-            return interaction.reply({ content: `❌ لم يتم العثور على رتبة الروم في السيرفر باسم: \`${modeData.role}\``, ephemeral: true });
+            return interaction.reply({ content: `❌ الرتبة \`${modeData.role}\` غير موجودة!`, ephemeral: true });
         }
 
-        // سحب الشخص الحالي (المنتهي) من القائمة وإزالة الرتبة عنه
-        const finishedUser = state.queue.shift();
+        // 1. سحب الشخص الذي انتهى اختباره (الأول في القائمة حالياً)
+        const finishedUser = state.queue.shift(); 
+        
+        // إزالة الرتبة عن المنتهي
         try {
             const finishedMember = await interaction.guild.members.fetch(finishedUser.id);
             await finishedMember.roles.remove(role);
         } catch (e) {}
 
-        // إعطاء الرتبة للشخص الجديد رقم 1
+        // 2. فحص هل يوجد لاعب جديد في القائمة ليأخذ الدور؟
         if (state.queue.length > 0) {
             const nextUser = state.queue[0];
             try {
                 const nextMember = await interaction.guild.members.fetch(nextUser.id);
-                await nextMember.roles.add(role);
+                await nextMember.roles.add(role); // إعطاء الرتبة للجديد
 
                 const embed = generateEmbed(channelId);
                 const components = generateComponents(channelId);
                 await interaction.update({ embeds: [embed], components: components });
 
-                await interaction.channel.send(`📢 دور اللاعب <@${nextUser.id}> في **${modeData.name}** الآن! وتم منحه رتبة الروم.`);
+                const msg = await interaction.channel.send(`📢 دور اللاعب <@${nextUser.id}> في **${modeData.name}** الآن! وتم منحه الرتبة.`);
+                // حذف رسالة الإشعار بعد 5 ثواني
+                setTimeout(() => msg.delete().catch(() => {}), 5000);
             } catch (e) {
-                await interaction.reply({ content: '❌ حدث خطأ أثناء منح الرتبة للاعب!', ephemeral: true });
+                await interaction.reply({ content: '❌ حدث خطأ أثناء منح الرتبة!', ephemeral: true });
             }
         } else {
+            // القائمة أصبحت فارغة بعد سحب اللاعب الأخير
             const embed = generateEmbed(channelId);
             const components = generateComponents(channelId);
             await interaction.update({ embeds: [embed], components: components });
-            await interaction.channel.send(`✅ انتهت قائمة انتظار **${modeData.name}**!`);
+            
+            const msg = await interaction.channel.send(`✅ انتهت قائمة انتظار **${modeData.name}**!`);
+            // حذف رسالة الإشعار بعد 5 ثواني
+            setTimeout(() => msg.delete().catch(() => {}), 5000);
         }
     }
 
