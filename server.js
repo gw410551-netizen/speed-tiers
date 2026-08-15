@@ -17,7 +17,7 @@ let waitlistState = {
     testerName: null,
     testerId: null,
     maxSeats: 20,
-    queue: [],
+    queue: [], // سيخزن الكائنات بدلاً من الـ IDs فقط: [{ id: '...', tag: '...' }]
     messageId: null,
     channelId: null
 };
@@ -35,6 +35,55 @@ const client = new Client({
 client.once('ready', () => {
     console.log(`Logged in as ${client.user.tag}! 🚀`);
 });
+
+// --- دوال مساعدة لتحديث الـ Embed والأسماء ---
+function generateWaitlistEmbed() {
+    if (!waitlistState.isOpen) {
+        return new EmbedBuilder()
+            .setColor('#e74c3c')
+            .setTitle('No Testers Online')
+            .setDescription('No testers for your region are available at this time.\nYou will be pinged when a tester is available.\nCheck back later!')
+            .setFooter({ text: `Last testing session: ${new Date().toLocaleDateString()}` })
+            .setTimestamp();
+    }
+
+    // تجهيز قائمة الأسماء بالترتيب
+    let queueListText = 'No players in queue yet.';
+    if (waitlistState.queue.length > 0) {
+        queueListText = waitlistState.queue.map((user, index) => `**${index + 1}.** <@${user.id}>`).join('\n');
+    }
+
+    return new EmbedBuilder()
+        .setColor('#2ecc71')
+        .setTitle('🟢 Testing is Open!')
+        .setDescription(`Tester **${waitlistState.testerName}** is now taking tests!\nClick the button below to join the waitlist (Max: ${waitlistState.queue.length}/${waitlistState.maxSeats}).`)
+        .addFields(
+            { name: '📋 Current Queue (Waitlist)', value: queueListText }
+        )
+        .setTimestamp();
+}
+
+function generateWaitlistComponents() {
+    if (!waitlistState.isOpen) return [];
+
+    const row1 = new ActionRowBuilder()
+        .addComponents(
+            new ButtonBuilder()
+                .setCustomId('join_waitlist')
+                .setLabel(`Join Waitlist (${waitlistState.queue.length}/${waitlistState.maxSeats})`)
+                .setStyle(ButtonStyle.Success),
+            new ButtonBuilder()
+                .setCustomId('next_player')
+                .setLabel('Next Player (اختبار التالي)')
+                .setStyle(ButtonStyle.Primary),
+            new ButtonBuilder()
+                .setCustomId('close_test')
+                .setLabel('Close Test')
+                .setStyle(ButtonStyle.Danger)
+        );
+
+    return [row1];
+}
 
 // --- معالجة الرسائل والأوامر والأزرار ---
 client.on('messageCreate', async message => {
@@ -92,14 +141,8 @@ client.on('messageCreate', async message => {
             return message.reply('❌ هذا الأمر مخصص للآدمن أو التيسترين فقط!');
         }
 
-        const offlineEmbed = new EmbedBuilder()
-            .setColor('#e74c3c')
-            .setTitle('No Testers Online')
-            .setDescription('No testers for your region are available at this time.\nYou will be pinged when a tester is available.\nCheck back later!')
-            .setFooter({ text: `Last testing session: ${new Date().toLocaleDateString()}` })
-            .setTimestamp();
-
-        const sentMsg = await message.channel.send({ embeds: [offlineEmbed] });
+        const embed = generateWaitlistEmbed();
+        const sentMsg = await message.channel.send({ embeds: [embed] });
         waitlistState.messageId = sentMsg.id;
         waitlistState.channelId = message.channel.id;
 
@@ -118,37 +161,20 @@ client.on('messageCreate', async message => {
         waitlistState.queue = [];
         waitlistState.channelId = message.channel.id;
 
-        const embed = new EmbedBuilder()
-            .setColor('#2ecc71')
-            .setTitle('🟢 Testing is Open!')
-            .setDescription(`Tester **${message.author.username}** is now taking tests!\nClick the button below to join the waitlist (Max: ${waitlistState.maxSeats} seats).`)
-            .addFields({ name: 'Current Queue', value: '0 players in queue' })
-            .setTimestamp();
+        const embed = generateWaitlistEmbed();
+        const components = generateWaitlistComponents();
 
-        const row = new ActionRowBuilder()
-            .addComponents(
-                new ButtonBuilder()
-                    .setCustomId('join_waitlist')
-                    .setLabel('Join Waitlist (0/20)')
-                    .setStyle(ButtonStyle.Success),
-                new ButtonBuilder()
-                    .setCustomId('close_test')
-                    .setLabel('Close Test')
-                    .setStyle(ButtonStyle.Danger)
-            );
-
-        // إذا كانت رسالة الحالة موجودة مسبقاً، قم بتعديلها (Edit)، وإلا أرسل رسالة جديدة
         if (waitlistState.messageId) {
             try {
                 const channel = await client.channels.fetch(waitlistState.channelId);
                 const msg = await channel.messages.fetch(waitlistState.messageId);
-                await msg.edit({ embeds: [embed], components: [row] });
+                await msg.edit({ embeds: [embed], components: components });
             } catch (e) {
-                const sentMessage = await message.channel.send({ embeds: [embed], components: [row] });
+                const sentMessage = await message.channel.send({ embeds: [embed], components: components });
                 waitlistState.messageId = sentMessage.id;
             }
         } else {
-            const sentMessage = await message.channel.send({ embeds: [embed], components: [row] });
+            const sentMessage = await message.channel.send({ embeds: [embed], components: components });
             waitlistState.messageId = sentMessage.id;
         }
         
@@ -160,43 +186,57 @@ client.on('messageCreate', async message => {
 client.on('interactionCreate', async interaction => {
     if (!interaction.isButton()) return;
 
-    // زر الانضمام لقائمة الانتظار
+    // أ. زر الانضمام لقائمة الانتظار
     if (interaction.customId === 'join_waitlist') {
         if (!waitlistState.isOpen) {
             return interaction.reply({ content: '❌ الاختبار مغلق حالياً!', ephemeral: true });
         }
 
         if (waitlistState.queue.length >= waitlistState.maxSeats) {
-            return interaction.reply({ content: `⚠️ عذراً، لقد امتلاء عدد المقاعد (${waitlistState.maxSeats}/${waitlistState.maxSeats})! انتظر حتى ينتهي التيستر الحالي.`, ephemeral: true });
+            return interaction.reply({ content: `⚠️ عذراً، لقد امتلاء عدد المقاعد (${waitlistState.maxSeats}/${waitlistState.maxSeats})!`, ephemeral: true });
         }
 
-        if (waitlistState.queue.includes(interaction.user.id)) {
+        if (waitlistState.queue.some(u => u.id === interaction.user.id)) {
             return interaction.reply({ content: '⚠️ أنت بالفعل موجود في قائمة الانتظار!', ephemeral: true });
         }
 
-        waitlistState.queue.push(interaction.user.id);
-        const currentCount = waitlistState.queue.length;
+        // إضافة المستخدم للقائمة مع الـ ID والـ Username
+        waitlistState.queue.push({ id: interaction.user.id, tag: interaction.user.tag });
 
-        const embed = EmbedBuilder.from(interaction.message.embeds[0])
-            .setFields({ name: 'Current Queue', value: `${currentCount} players in queue` });
-
-        const row = new ActionRowBuilder()
-            .addComponents(
-                new ButtonBuilder()
-                    .setCustomId('join_waitlist')
-                    .setLabel(`Join Waitlist (${currentCount}/${waitlistState.maxSeats})`)
-                    .setStyle(ButtonStyle.Success),
-                new ButtonBuilder()
-                    .setCustomId('close_test')
-                    .setLabel('Close Test')
-                    .setStyle(ButtonStyle.Danger)
-            );
-
-        await interaction.update({ embeds: [embed], components: [row] });
-        await interaction.followUp({ content: `✅ تم إضافتك لقائمة الانتظار بنجاح! ترتيبك: ${currentCount}`, ephemeral: true });
+        // تحديث الرسالة بالأسماء الجديدة
+        const embed = generateWaitlistEmbed();
+        const components = generateWaitlistComponents();
+        await interaction.update({ embeds: [embed], components: components });
+        
+        await interaction.followUp({ content: `✅ تم إضافتك لقائمة الانتظار بنجاح! ترتيبك: ${waitlistState.queue.length}`, ephemeral: true });
     }
 
-    // زر إغلاق الاختبار من قِبل التيستر
+    // ب. زر سحب الشخص التالي (Next Player) - يقوم بسحب الشخص الأول وطرده من القائمة وصعود البقية
+    if (interaction.customId === 'next_player') {
+        const member = await interaction.guild.members.fetch(interaction.user.id);
+        const isTesterRole = member.roles.cache.some(role => role.name === 'Tester');
+
+        if (!isTesterRole && interaction.user.id !== waitlistState.testerId) {
+            return interaction.reply({ content: '❌ فقط التيستر المسؤول يمكنه سحب اللاعب التالي!', ephemeral: true });
+        }
+
+        if (waitlistState.queue.length === 0) {
+            return interaction.reply({ content: '⚠️ قائمة الانتظار فارغة تماماً!', ephemeral: true });
+        }
+
+        // سحب أول شخص في القائمة (رقم 1)
+        const nextUser = waitlistState.queue.shift(); // .shift() تحذفه من القائمة وتجيبه (تطرد الأول ليتقدم البقية)
+
+        // تحديث الرسالة بالأسماء الجديدة بعد الحذف
+        const embed = generateWaitlistEmbed();
+        const components = generateWaitlistComponents();
+        await interaction.update({ embeds: [embed], components: components });
+
+        // منشن للاعب المسحوب في الشات لكي ينتبه ويبدأ اختباره
+        await interaction.channel.send(`📢 دور اللاعب <@${nextUser.id}> الآن! توجه لروم الاختبار.`);
+    }
+
+    // ج. زر إغلاق الاختبار
     if (interaction.customId === 'close_test') {
         const member = await interaction.guild.members.fetch(interaction.user.id);
         const isTesterRole = member.roles.cache.some(role => role.name === 'Tester');
@@ -210,14 +250,7 @@ client.on('interactionCreate', async interaction => {
         waitlistState.testerId = null;
         waitlistState.queue = [];
 
-        const offlineEmbed = new EmbedBuilder()
-            .setColor('#e74c3c')
-            .setTitle('No Testers Online')
-            .setDescription('No testers for your region are available at this time.\nYou will be pinged when a tester is available.\nCheck back later!')
-            .setFooter({ text: `Last testing session: ${new Date().toLocaleDateString()}` })
-            .setTimestamp();
-
-        // تحديث نفس الرسالة وإزالة الأزرار لتعود للشكل الأحمر الصامت
+        const offlineEmbed = generateWaitlistEmbed();
         await interaction.update({ embeds: [offlineEmbed], components: [] });
     }
 });
@@ -248,7 +281,7 @@ async function syncResultsToGitHub(data) {
 // --- مسارات الـ API للموقع ---
 app.get('/api/results', async (req, res) => {
     try {
-        const response = await axios.get(`https://api.github.com/repos/gw410551-netizen/speed-tiers/contents/results.json`, {
+        const response = argumentCheck = await axios.get(`https://api.github.com/repos/gw410551-netizen/speed-tiers/contents/results.json`, {
             headers: process.env.GITHUB_TOKEN ? { Authorization: `token ${process.env.GITHUB_TOKEN}` } : {}
         });
         const data = JSON.parse(Buffer.from(response.data.content, 'base64').toString('utf8'));
