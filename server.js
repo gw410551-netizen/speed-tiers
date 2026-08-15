@@ -2,7 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const fs = require('fs');
 const axios = require('axios');
-const { Client, GatewayIntentBits } = require('discord.js');
+const { Client, GatewayIntentBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 
 const app = express();
 app.use(express.json());
@@ -11,12 +11,24 @@ app.use(cors());
 const DB_FILE = './results.json';
 const PORT = process.env.PORT || 8080;
 
+// --- نظام حالة قائمة الانتظار (Waitlist State) ---
+let waitlistState = {
+    isOpen: false,
+    testerName: null,
+    testerId: null,
+    maxSeats: 20,
+    queue: [],
+    messageId: null,
+    channelId: null
+};
+
 // --- إعدادات بوت الديسكورد ---
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
         GatewayIntentBits.GuildMessages,
-        GatewayIntentBits.MessageContent
+        GatewayIntentBits.MessageContent,
+        GatewayIntentBits.GuildMembers
     ]
 });
 
@@ -24,9 +36,11 @@ client.once('ready', () => {
     console.log(`Logged in as ${client.user.tag}! 🚀`);
 });
 
+// --- معالجة الرسائل والأوامر والأزرار ---
 client.on('messageCreate', async message => {
     if (message.author.bot) return;
 
+    // 1. أمر تسجيل النتائج القديم (!test)
     if (message.content.startsWith('!test')) {
         try {
             const args = message.content.split(' ').slice(1);
@@ -35,7 +49,6 @@ client.on('messageCreate', async message => {
                 return message.reply('❌ الاستخدام الصحيح: `!test [الاسم] [الرتبة] [الجيم مود]` مع إرفاق صورة السكن.');
             }
 
-            // التقاط رابط الصورة المرفقة إذا وجدت، وإلا صورة افتراضية
             const attachment = message.attachments.first();
             const skinUrl = attachment ? attachment.url : "https://i.imgur.com/k2Lh4sC.png";
 
@@ -71,6 +84,113 @@ client.on('messageCreate', async message => {
         } catch (err) {
             message.reply('❌ حدث خطأ: ' + err.message);
         }
+    }
+
+    // 2. أمر فتح قائمة الانتظار (!opentest) - مخصص للتيسترين
+    if (message.content === '!opentest') {
+        // التحقق من أن المستخدم لديه رتبة Tester (يمكنك تعديل اسم الرتبة هنا إن أردت)
+        if (!message.member.roles.cache.some(role => role.name === 'Tester')) {
+            return message.reply('❌ عذراً، هذا الأمر مخصص لحاملي رتبة `@Tester` فقط!');
+        }
+
+        waitlistState.isOpen = true;
+        waitlistState.testerName = message.author.username;
+        waitlistState.testerId = message.author.id;
+        waitlistState.queue = [];
+        waitlistState.channelId = message.channel.id;
+
+        const embed = new EmbedBuilder()
+            .setColor('#2ecc71')
+            .setTitle('🟢 Testing is Open!')
+            .setDescription(`Tester **${message.author.username}** is now taking tests!\nClick the button below to join the waitlist (Max: ${waitlistState.maxSeats} seats).`)
+            .addFields({ name: 'Current Queue', value: '0 players in queue' })
+            .setTimestamp();
+
+        const row = new ActionRowBuilder()
+            .addComponents(
+                new ButtonBuilder()
+                    .setCustomId('join_waitlist')
+                    .setLabel('Join Waitlist (0/20)')
+                    .setStyle(ButtonStyle.Success),
+                new ButtonBuilder()
+                    .setCustomId('close_test')
+                    .setLabel('Close Test')
+                    .setStyle(ButtonStyle.Danger)
+            );
+
+        const sentMessage = await message.channel.send({ embeds: [embed], components: [row] });
+        waitlistState.messageId = sentMessage.id;
+        
+        // حذف رسالة الأمر لتنظيف الشات
+        await message.delete().catch(() => {});
+    }
+});
+
+// --- إدارة التفاعل مع الأزرار (Buttons) ---
+client.on('interactionCreate', async interaction => {
+    if (!interaction.isButton()) return;
+
+    // زر الانضمام لقائمة الانتظار
+    if (interaction.customId === 'join_waitlist') {
+        if (!waitlistState.isOpen) {
+            return interaction.reply({ content: '❌ الاختبار مغلق حالياً!', ephemeral: true });
+        }
+
+        if (waitlistState.queue.length >= waitlistState.maxSeats) {
+            return interaction.reply({ content: `⚠️ عذراً، لقد امتلاء عدد المقاعد (${waitlistState.maxSeats}/${waitlistState.maxSeats})! انتظر حتى ينتهي التيستر الحالي.`, ephemeral: true });
+        }
+
+        if (waitlistState.queue.includes(interaction.user.id)) {
+            return interaction.reply({ content: '⚠️ أنت بالفعل موجود في قائمة الانتظار!', ephemeral: true });
+        }
+
+        waitlistState.queue.push(interaction.user.id);
+        const currentCount = waitlistState.queue.length;
+
+        // تحديث الـ Embed وزر الانضمام بالعدد الجديد
+        const embed = EmbedBuilder.from(interaction.message.embeds[0])
+            .setFields({ name: 'Current Queue', value: `${currentCount} players in queue` });
+
+        const row = new ActionRowBuilder()
+            .addComponents(
+                new ButtonBuilder()
+                    .setCustomId('join_waitlist')
+                    .setLabel(`Join Waitlist (${currentCount}/${waitlistState.maxSeats})`)
+                    .setStyle(ButtonStyle.Success),
+                new ButtonBuilder()
+                    .setCustomId('close_test')
+                    .setLabel('Close Test')
+                    .setStyle(ButtonStyle.Danger)
+            );
+
+        await interaction.update({ embeds: [embed], components: [row] });
+        await interaction.followUp({ content: `✅ تم إضافتك لقائمة الانتظار بنجاح! ترتيبك: ${currentCount}`, ephemeral: true });
+    }
+
+    // زر إغلاق الاختبار من قِبل التيستر
+    if (interaction.customId === 'close_test') {
+        // التحقق أن الشخص الذي يغلق هو نفسه التيستر أو لديه رتبة Tester
+        const member = await interaction.guild.members.fetch(interaction.user.id);
+        const isTesterRole = member.roles.cache.some(role => role.name === 'Tester');
+        
+        if (!isTesterRole && interaction.user.id !== waitlistState.testerId) {
+            return interaction.reply({ content: '❌ فقط التيستر المسؤول يمكنه إغلاق الاختبار!', ephemeral: true });
+        }
+
+        // إرجاع الحالة للوضع المغلق (No Testers Online) المماثل لصورتك
+        waitlistState.isOpen = false;
+        waitlistState.testerName = null;
+        waitlistState.testerId = null;
+        waitlistState.queue = [];
+
+        const offlineEmbed = new EmbedBuilder()
+            .setColor('#e74c3c')
+            .setTitle('No Testers Online')
+            .setDescription('No testers for your region are available at this time.\nYou will be pinged when a tester is available.\nCheck back later!')
+            .setFooter({ text: `Last testing session: ${new Date().toLocaleDateString()}` })
+            .setTimestamp();
+
+        await interaction.update({ embeds: [offlineEmbed], components: [] });
     }
 });
 
