@@ -11,18 +11,21 @@ app.use(cors());
 const DB_FILE = './results.json';
 const PORT = process.env.PORT || 8080;
 
-// --- نظام حالة قائمة الانتظار (Waitlist State) ---
-let waitlistState = {
-    isOpen: false,
-    testerName: null,
-    testerId: null,
-    maxSeats: 20,
-    queue: [], // سيخزن الكائنات بدلاً من الـ IDs فقط: [{ id: '...', tag: '...' }]
-    messageId: null,
-    channelId: null
+// --- خريطة الروم لكل جيم مود مع اسم الرتبة الخاصة به ---
+const waitlistConfig = {
+    '1535976898893586434': { name: 'Sword', role: 'sword-waitlist' },
+    '1538238432730685500': { name: 'Mace', role: 'mace-waitlist' },
+    '1538238485016617181': { name: 'Vanilla', role: 'vanilla-waitlist' },
+    '1538238536715870258': { name: 'UHC', role: 'uhc-waitlist' },
+    '1538238611063963719': { name: 'Pot', role: 'pot-waitlist' },
+    '1538238671206223872': { name: 'NethOP', role: 'nethop-waitlist' },
+    '1538238713048469567': { name: 'SMP', role: 'smp-waitlist' },
+    '1538238766484029590': { name: 'Axe', role: 'axe-waitlist' }
 };
 
-// --- إعدادات بوت الديسكورد ---
+// --- نظام حالة قائمة الانتظار لكل روم على حدة ---
+let waitlists = {};
+
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
@@ -36,67 +39,83 @@ client.once('ready', () => {
     console.log(`Logged in as ${client.user.tag}! 🚀`);
 });
 
-// --- دوال مساعدة لتحديث الـ Embed والأسماء ---
-function generateWaitlistEmbed() {
-    if (!waitlistState.isOpen) {
+// --- دوال توليد الـ Embed والأزرار لكل روم ---
+function getWaitlistState(channelId) {
+    if (!waitlists[channelId]) {
+        waitlists[channelId] = {
+            isOpen: false,
+            testerName: null,
+            testerId: null,
+            maxSeats: 20,
+            queue: [],
+            messageId: null
+        };
+    }
+    return waitlists[channelId];
+}
+
+function generateEmbed(channelId) {
+    const state = getWaitlistState(channelId);
+    const modeInfo = waitlistConfig[channelId] ? waitlistConfig[channelId].name : 'Test';
+
+    if (!state.isOpen) {
         return new EmbedBuilder()
             .setColor('#e74c3c')
-            .setTitle('No Testers Online')
-            .setDescription('No testers for your region are available at this time.\nYou will be pinged when a tester is available.\nCheck back later!')
+            .setTitle(`No Testers Online (${modeInfo})`)
+            .setDescription('No testers for this mode are available at this time.\nYou will be pinged when a tester is available.\nCheck back later!')
             .setFooter({ text: `Last testing session: ${new Date().toLocaleDateString()}` })
             .setTimestamp();
     }
 
-    // تجهيز قائمة الأسماء بالترتيب
     let queueListText = 'No players in queue yet.';
-    if (waitlistState.queue.length > 0) {
-        queueListText = waitlistState.queue.map((user, index) => `**${index + 1}.** <@${user.id}>`).join('\n');
+    if (state.queue.length > 0) {
+        queueListText = state.queue.map((user, index) => `**${index + 1}.** <@${user.id}>`).join('\n');
     }
 
     return new EmbedBuilder()
         .setColor('#2ecc71')
-        .setTitle('🟢 Testing is Open!')
-        .setDescription(`Tester **${waitlistState.testerName}** is now taking tests!\nClick the button below to join the waitlist (Max: ${waitlistState.queue.length}/${waitlistState.maxSeats}).`)
-        .addFields(
-            { name: '📋 Current Queue (Waitlist)', value: queueListText }
-        )
+        .setTitle(`🟢 ${modeInfo} Testing is Open!`)
+        .setDescription(`Tester **${state.testerName}** is now taking tests!\nClick the button below to join the waitlist (Max: ${state.queue.length}/${state.maxSeats}).`)
+        .addFields({ name: '📋 Current Queue (Waitlist)', value: queueListText })
         .setTimestamp();
 }
 
-function generateWaitlistComponents() {
-    if (!waitlistState.isOpen) return [];
+function generateComponents(channelId) {
+    const state = getWaitlistState(channelId);
+    if (!state.isOpen) return [];
 
     const row1 = new ActionRowBuilder()
         .addComponents(
             new ButtonBuilder()
                 .setCustomId('join_waitlist')
-                .setLabel(`Join Waitlist (${waitlistState.queue.length}/${waitlistState.maxSeats})`)
+                .setLabel(`Join (${state.queue.length}/${state.maxSeats})`)
                 .setStyle(ButtonStyle.Success),
+            new ButtonBuilder()
+                .setCustomId('leave_waitlist')
+                .setLabel('Leave Waitlist (مغادرة)')
+                .setStyle(ButtonStyle.Secondary),
             new ButtonBuilder()
                 .setCustomId('next_player')
                 .setLabel('Next Player (اختبار التالي)')
                 .setStyle(ButtonStyle.Primary),
             new ButtonBuilder()
                 .setCustomId('close_test')
-                .setLabel('Close Test')
+                .setLabel('Close')
                 .setStyle(ButtonStyle.Danger)
         );
 
     return [row1];
 }
 
-// --- معالجة الرسائل والأوامر والأزرار ---
+// --- معالجة الأوامر ---
 client.on('messageCreate', async message => {
     if (message.author.bot) return;
 
-    // 1. أمر تسجيل النتائج القديم (!test)
+    // أمر !test القديم لتسجيل النتائج
     if (message.content.startsWith('!test')) {
         try {
             const args = message.content.split(' ').slice(1);
-            
-            if (args.length < 3) {
-                return message.reply('❌ الاستخدام الصحيح: `!test [الاسم] [الرتبة] [الجيم مود]` مع إرفاق صورة السكن.');
-            }
+            if (args.length < 3) return message.reply('❌ الاستخدام: `!test [الاسم] [الرتبة] [الجيم مود]` مع إرفاق صورة السكن.');
 
             const attachment = message.attachments.first();
             const skinUrl = attachment ? attachment.url : "https://i.imgur.com/k2Lh4sC.png";
@@ -110,184 +129,173 @@ client.on('messageCreate', async message => {
                 date: new Date().toISOString().split('T')[0]
             };
 
-            let results = [];
-            if (fs.existsSync(DB_FILE)) {
-                results = JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
-            }
-
+            let results = fs.existsSync(DB_FILE) ? JSON.parse(fs.readFileSync(DB_FILE, 'utf8')) : [];
             const existingIndex = results.findIndex(item => 
                 item.minecraftName.toLowerCase() === newResult.minecraftName.toLowerCase() &&
                 item.gameMode.toLowerCase() === newResult.gameMode.toLowerCase()
             );
 
-            if (existingIndex !== -1) {
-                results[existingIndex] = newResult;
-            } else {
-                results.unshift(newResult);
-            }
+            if (existingIndex !== -1) results[existingIndex] = newResult;
+            else results.unshift(newResult);
 
             fs.writeFileSync(DB_FILE, JSON.stringify(results, null, 2));
             await syncResultsToGitHub(results);
-            
             message.reply(`✅ تم تسجيل نتيجة **${newResult.minecraftName}** بنجاح وتحديث الموقع!`);
         } catch (err) {
             message.reply('❌ حدث خطأ: ' + err.message);
         }
     }
 
-    // 2. أمر إرسال رسالة الحالة الحمراء الأساسية في الروم (!setupwaitlist)
+    // أمر تجهيز رسالة الويت ليست في الروم (!setupwaitlist)
     if (message.content === '!setupwaitlist') {
-        if (!message.member.roles.cache.some(role => role.name === 'Tester') && !message.member.permissions.has('Administrator')) {
-            return message.reply('❌ هذا الأمر مخصص للآدمن أو التيسترين فقط!');
+        if (!waitlistConfig[message.channel.id]) {
+            return message.reply('❌ هذه القناة ليست مسجلة كقناة ويت ليست لأي جيم مود!');
         }
 
-        const embed = generateWaitlistEmbed();
+        const state = getWaitlistState(message.channel.id);
+        const embed = generateEmbed(message.channel.id);
         const sentMsg = await message.channel.send({ embeds: [embed] });
-        waitlistState.messageId = sentMsg.id;
-        waitlistState.channelId = message.channel.id;
+        state.messageId = sentMsg.id;
 
         await message.delete().catch(() => {});
     }
 
-    // 3. أمر فتح قائمة الانتظار (!opentest)
+    // أمر فتح الويت ليست للتيستر (!opentest)
     if (message.content === '!opentest') {
+        if (!waitlistConfig[message.channel.id]) {
+            return message.reply('❌ هذه القناة ليست مخصصة للويت ليست!');
+        }
         if (!message.member.roles.cache.some(role => role.name === 'Tester')) {
-            return message.reply('❌ عذراً، هذا الأمر مخصص لحاملي رتبة `@Tester` فقط!');
+            return message.reply('❌ عذراً، هذا الأمر مخصص للتيسترين فقط!');
         }
 
-        waitlistState.isOpen = true;
-        waitlistState.testerName = message.author.username;
-        waitlistState.testerId = message.author.id;
-        waitlistState.queue = [];
-        waitlistState.channelId = message.channel.id;
+        const state = getWaitlistState(message.channel.id);
+        state.isOpen = true;
+        state.testerName = message.author.username;
+        state.testerId = message.author.id;
+        state.queue = [];
 
-        const embed = generateWaitlistEmbed();
-        const components = generateWaitlistComponents();
+        const embed = generateEmbed(message.channel.id);
+        const components = generateComponents(message.channel.id);
 
-        if (waitlistState.messageId) {
+        if (state.messageId) {
             try {
-                const channel = await client.channels.fetch(waitlistState.channelId);
-                const msg = await channel.messages.fetch(waitlistState.messageId);
+                const msg = await message.channel.messages.fetch(state.messageId);
                 await msg.edit({ embeds: [embed], components: components });
             } catch (e) {
-                const sentMessage = await message.channel.send({ embeds: [embed], components: components });
-                waitlistState.messageId = sentMessage.id;
+                const sentMsg = await message.channel.send({ embeds: [embed], components: components });
+                state.messageId = sentMsg.id;
             }
         } else {
-            const sentMessage = await message.channel.send({ embeds: [embed], components: components });
-            waitlistState.messageId = sentMessage.id;
+            const sentMsg = await message.channel.send({ embeds: [embed], components: components });
+            state.messageId = sentMsg.id;
         }
-        
+
         await message.delete().catch(() => {});
     }
 });
 
-// --- إدارة التفاعل مع الأزرار (Buttons) ---
+// --- إدارة الأزرار التفاعلية ---
 client.on('interactionCreate', async interaction => {
     if (!interaction.isButton()) return;
+    const channelId = interaction.channel.id;
 
-    // أ. زر الانضمام لقائمة الانتظار
+    if (!waitlistConfig[channelId]) return;
+    const state = getWaitlistState(channelId);
+    const modeData = waitlistConfig[channelId];
+
+    // 1. الانضمام للويت ليست
     if (interaction.customId === 'join_waitlist') {
-        if (!waitlistState.isOpen) {
-            return interaction.reply({ content: '❌ الاختبار مغلق حالياً!', ephemeral: true });
-        }
+        if (!state.isOpen) return interaction.reply({ content: '❌ الاختبار مغلق حالياً!', ephemeral: true });
+        if (state.queue.length >= state.maxSeats) return interaction.reply({ content: '⚠️ عذراً، امتلاءت المقاعد!', ephemeral: true });
+        if (state.queue.some(u => u.id === interaction.user.id)) return interaction.reply({ content: '⚠️ أنت موجود بالفعل في القائمة!', ephemeral: true });
 
-        if (waitlistState.queue.length >= waitlistState.maxSeats) {
-            return interaction.reply({ content: `⚠️ عذراً، لقد امتلاء عدد المقاعد (${waitlistState.maxSeats}/${waitlistState.maxSeats})!`, ephemeral: true });
-        }
+        state.queue.push({ id: interaction.user.id, tag: interaction.user.tag });
 
-        if (waitlistState.queue.some(u => u.id === interaction.user.id)) {
-            return interaction.reply({ content: '⚠️ أنت بالفعل موجود في قائمة الانتظار!', ephemeral: true });
-        }
-
-        // إضافة المستخدم للقائمة مع الـ ID والـ Username
-        waitlistState.queue.push({ id: interaction.user.id, tag: interaction.user.tag });
-
-        // تحديث الرسالة بالأسماء الجديدة
-        const embed = generateWaitlistEmbed();
-        const components = generateWaitlistComponents();
+        const embed = generateEmbed(channelId);
+        const components = generateComponents(channelId);
         await interaction.update({ embeds: [embed], components: components });
-        
-        await interaction.followUp({ content: `✅ تم إضافتك لقائمة الانتظار بنجاح! ترتيبك: ${waitlistState.queue.length}`, ephemeral: true });
+        await interaction.followUp({ content: `✅ تم إضافتك لقائمة انتظار **${modeData.name}** بنجاح! ترتيبك: ${state.queue.length}`, ephemeral: true });
     }
 
-    // --- داخل interactionCreate ---
+    // 2. مغادرة الويت ليست بنفسه (زر جديد يتيح للاعب الخروج)
+    if (interaction.customId === 'leave_waitlist') {
+        if (!state.queue.some(u => u.id === interaction.user.id)) {
+            return interaction.reply({ content: '⚠️ أنت لست موجوداً في قائمة الانتظار أساساً!', ephemeral: true });
+        }
 
-    // ب. زر سحب الشخص التالي (Next Player)
+        state.queue = state.queue.filter(u => u.id !== interaction.user.id);
+
+        const embed = generateEmbed(channelId);
+        const components = generateComponents(channelId);
+        await interaction.update({ embeds: [embed], components: components });
+        await interaction.followUp({ content: `✅ لقد قمت بمغادرة قائمة انتظار **${modeData.name}** بنجاح.`, ephemeral: true });
+    }
+
+    // 3. اختبار التالي (Next Player) - يعطي رتبة الجيم مود ويسحبها عن السابق
     if (interaction.customId === 'next_player') {
         const member = await interaction.guild.members.fetch(interaction.user.id);
-        const isTesterRole = member.roles.cache.some(role => role.name === 'Tester');
+        const isTester = member.roles.cache.some(role => role.name === 'Tester');
 
-        if (!isTesterRole && interaction.user.id !== waitlistState.testerId) {
+        if (!isTester && interaction.user.id !== state.testerId) {
             return interaction.reply({ content: '❌ فقط التيستر المسؤول يمكنه سحب اللاعب التالي!', ephemeral: true });
         }
 
-        if (waitlistState.queue.length === 0) {
+        if (state.queue.length === 0) {
             return interaction.reply({ content: '⚠️ قائمة الانتظار فارغة تماماً!', ephemeral: true });
         }
 
-        const roleName = 'waitlist'; // اسم الرتبة
-        const testRoomId = '1535779432776597566'; // آيدي روم الاختبار
-        const role = interaction.guild.roles.cache.find(r => r.name === roleName);
-
+        const role = interaction.guild.roles.cache.find(r => r.name === modeData.role);
         if (!role) {
-            return interaction.reply({ content: `❌ لم يتم العثور على رتبة باسم ${roleName}!`, ephemeral: true });
+            return interaction.reply({ content: `❌ لم يتم العثور على رتبة الروم في السيرفر باسم: \`${modeData.role}\``, ephemeral: true });
         }
 
-        // 1. سحب الشخص الحالي (الذي انتهى اختباره) من القائمة
-        const finishedUser = waitlistState.queue.shift(); 
-
-        // 2. إزالة الرتبة عن الشخص الذي انتهى اختباره
+        // سحب الشخص الحالي (المنتهي) من القائمة وإزالة الرتبة عنه
+        const finishedUser = state.queue.shift();
         try {
             const finishedMember = await interaction.guild.members.fetch(finishedUser.id);
             await finishedMember.roles.remove(role);
-        } catch (e) {
-            console.log('لم استطع إزالة الرتبة (ربما غادر السيرفر)');
-        }
+        } catch (e) {}
 
-        // 3. سحب الشخص الجديد (الذي صار ترتيبه رقم 1)
-        if (waitlistState.queue.length > 0) {
-            const nextUser = waitlistState.queue[0]; // الشخص الجديد في الترتيب
-            
+        // إعطاء الرتبة للشخص الجديد رقم 1
+        if (state.queue.length > 0) {
+            const nextUser = state.queue[0];
             try {
                 const nextMember = await interaction.guild.members.fetch(nextUser.id);
-                await nextMember.roles.add(role); // إعطاء الرتبة
-                
-                // تحديث الرسالة
-                const embed = generateWaitlistEmbed();
-                const components = generateWaitlistComponents();
+                await nextMember.roles.add(role);
+
+                const embed = generateEmbed(channelId);
+                const components = generateComponents(channelId);
                 await interaction.update({ embeds: [embed], components: components });
 
-                // منشن للاعب الجديد
-                await interaction.channel.send(`📢 دور اللاعب <@${nextUser.id}> الآن! تم منحه صلاحية دخول روم الاختبار.`);
+                await interaction.channel.send(`📢 دور اللاعب <@${nextUser.id}> في **${modeData.name}** الآن! وتم منحه رتبة الروم.`);
             } catch (e) {
-                await interaction.reply({ content: '❌ حدث خطأ أثناء إعطاء الرتبة للمستخدم!', ephemeral: true });
+                await interaction.reply({ content: '❌ حدث خطأ أثناء منح الرتبة للاعب!', ephemeral: true });
             }
         } else {
-            // القائمة أصبحت فارغة
-            const embed = generateWaitlistEmbed();
-            const components = generateWaitlistComponents();
+            const embed = generateEmbed(channelId);
+            const components = generateComponents(channelId);
             await interaction.update({ embeds: [embed], components: components });
-            await interaction.channel.send(`✅ انتهت قائمة الانتظار!`);
+            await interaction.channel.send(`✅ انتهت قائمة انتظار **${modeData.name}**!`);
         }
     }
 
-    // ج. زر إغلاق الاختبار
+    // 4. إغلاق الاختبار
     if (interaction.customId === 'close_test') {
         const member = await interaction.guild.members.fetch(interaction.user.id);
-        const isTesterRole = member.roles.cache.some(role => role.name === 'Tester');
-        
-        if (!isTesterRole && interaction.user.id !== waitlistState.testerId) {
+        const isTester = member.roles.cache.some(role => role.name === 'Tester');
+
+        if (!isTester && interaction.user.id !== state.testerId) {
             return interaction.reply({ content: '❌ فقط التيستر المسؤول يمكنه إغلاق الاختبار!', ephemeral: true });
         }
 
-        waitlistState.isOpen = false;
-        waitlistState.testerName = null;
-        waitlistState.testerId = null;
-        waitlistState.queue = [];
+        state.isOpen = false;
+        state.testerName = null;
+        state.testerId = null;
+        state.queue = [];
 
-        const offlineEmbed = generateWaitlistEmbed();
-        await interaction.update({ embeds: [offlineEmbed], components: [] });
+        const embed = generateEmbed(channelId);
+        await interaction.update({ embeds: [embed], components: [] });
     }
 });
 
@@ -314,10 +322,9 @@ async function syncResultsToGitHub(data) {
     }
 }
 
-// --- مسارات الـ API للموقع ---
 app.get('/api/results', async (req, res) => {
     try {
-        const response = argumentCheck = await axios.get(`https://api.github.com/repos/gw410551-netizen/speed-tiers/contents/results.json`, {
+        const response = await axios.get(`https://api.github.com/repos/gw410551-netizen/speed-tiers/contents/results.json`, {
             headers: process.env.GITHUB_TOKEN ? { Authorization: `token ${process.env.GITHUB_TOKEN}` } : {}
         });
         const data = JSON.parse(Buffer.from(response.data.content, 'base64').toString('utf8'));
