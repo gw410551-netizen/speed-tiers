@@ -302,7 +302,7 @@ client.on('interactionCreate', async interaction => {
             setTimeout(() => endMsg.delete().catch(() => {}), 5000);
         }
     }
-    // 4. إغلاق الاختبار (Close Test) وتنظيف الرتب
+    // 4. إغلاق الاختبار (Close Test) - نسخة نهائية للتنظيف الشامل
     if (interaction.customId === 'close_test') {
         const member = await interaction.guild.members.fetch(interaction.user.id);
         const isTester = member.roles.cache.some(role => role.name === 'Tester');
@@ -314,16 +314,20 @@ client.on('interactionCreate', async interaction => {
         const role = interaction.guild.roles.cache.find(r => r.name === modeData.role);
 
         if (role) {
-            for (const user of state.queue) {
-                try {
-                    const queueMember = await interaction.guild.members.fetch(user.id);
-                    if (queueMember.roles.cache.has(role.id)) {
-                        await queueMember.roles.remove(role);
+            // تنظيف شامل: البحث عن أي عضو في السيرفر يحمل هذه الرتبة وسحبها منه
+            const membersWithRole = await interaction.guild.members.fetch();
+            membersWithRole.forEach(async (m) => {
+                if (m.roles.cache.has(role.id)) {
+                    try {
+                        await m.roles.remove(role);
+                    } catch (e) {
+                        console.error(`Could not remove role from ${m.user.tag}`);
                     }
-                } catch (e) {}
-            }
+                }
+            });
         }
 
+        // تصفير الحالة
         state.isOpen = false;
         state.testerName = null;
         state.testerId = null;
@@ -332,7 +336,7 @@ client.on('interactionCreate', async interaction => {
         const embed = generateEmbed(channelId);
         await interaction.update({ embeds: [embed], components: [] });
         
-        const msg = await interaction.channel.send(`🔒 تم إغلاق اختبار **${modeData.name}** وإزالة جميع رتب الانتظار بنجاح.`);
+        const msg = await interaction.channel.send(`🔒 تم إغلاق اختبار **${modeData.name}** وإزالة جميع الرتب من الجميع بنجاح.`);
         setTimeout(() => msg.delete().catch(() => {}), 5000);
     }
 });
