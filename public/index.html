@@ -26,24 +26,19 @@
         .brand-section {
             display: flex;
             flex-direction: column;
+            gap: 5px;
         }
 
-        h1 { 
-            color: #ffd700; 
-            font-size: 2.3rem; 
-            text-shadow: 0 0 20px rgba(255,215,0,0.3); 
-            font-weight: 900; 
-            letter-spacing: -0.5px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
+        /* تنسيق صورة الشعار بدلاً من النص */
+        .brand-logo { 
+            height: 45px; /* يمكنك تعديل الارتفاع حسب حجم صورتك المناسب */
+            object-fit: contain;
         }
 
         .brand-subtitle {
             color: #8a99ad;
             font-size: 0.95rem;
             font-weight: 600;
-            margin-top: 2px;
         }
 
         .discord-btn {
@@ -204,7 +199,7 @@
         .mode-badge { background: #2a364d; color: #fff; padding: 6px 14px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; }
         .date { color: #8a99ad; font-size: 0.85rem; font-weight: 600; }
 
-        /* تنسيق أيقونات ورتب الجيم مودز بجانب اللاعب في الأوفرول (على طراز MCTiers) */
+        /* تنسيق أيقونات ورتب الجيم مودز بجانب اللاعب في الأوفرول */
         .player-tiers-container {
             display: flex;
             gap: 12px;
@@ -242,7 +237,8 @@
     <!-- الهيدر العلوي -->
     <header class="main-header">
         <div class="brand-section">
-            <h1>⚡ SpeedTiers Rankings</h1>
+            <!-- تم استبدال النص بصورة الشعار -->
+            <img src="speedtires.png" alt="SpeedTiers Logo" class="brand-logo">
             <span class="brand-subtitle">لوحة المتصدرين الرسمية لاختبارات الـ PvP</span>
         </div>
         <a href="https://discord.gg/kwERMjej43" target="_blank" class="discord-btn">
@@ -278,13 +274,9 @@
     <div class="table-container">
         <table id="resultsTable">
             <thead>
-                <tr id="tableHeaders">
-                    <!-- سيتم تحديث العناوين ديناميكياً -->
-                </tr>
+                <tr id="tableHeaders"></tr>
             </thead>
-            <tbody>
-                <!-- النتائج -->
-            </tbody>
+            <tbody></tbody>
         </table>
     </div>
 
@@ -292,7 +284,6 @@
         let allResults = [];
         let currentMode = 'Overall';
 
-        // قائمة الجيم مودز وأيقوناتها المطابقة
         const gameModesList = ['Sword', 'Mace', 'Vanilla', 'UHC', 'Pot', 'NethOP', 'SMP', 'Axe'];
         const modeIcons = {
             'sword': 'sword.svg',
@@ -319,11 +310,9 @@
             'HT5': 9, 'LT5': 10
         };
 
-        // جلب البيانات مع منع الكاش
         fetch('https://raw.githubusercontent.com/gw410551-netizen/speed-tiers/main/results.json?v=' + Date.now(), { cache: 'no-store' })
             .then(res => res.json())
             .then(data => {
-                console.log("تم تحميل البيانات بنجاح:", data);
                 allResults = data;
                 sortAndRender(currentMode);
             })
@@ -350,7 +339,6 @@
                     const skinHeadUrl = player.skinUrl ? player.skinUrl : `https://mc-heads.net/avatar/Steve/36`;
                     const rankColor = index === 0 ? '#ffd700' : '#d4af37';
 
-                    // بناء خانات الرتب والأيقونات لكل جيم مود حققه اللاعب
                     let tiersHtml = `<div class="player-tiers-container">`;
                     gameModesList.forEach(mName => {
                         const mKey = mName.toLowerCase();
@@ -445,7 +433,6 @@
                     const name = item.minecraftName.trim();
                     const modeClean = item.gameMode.trim().toLowerCase();
                     const tier = item.tierLevel.toUpperCase();
-                    const points = tierPoints[tier] || 0;
 
                     if (!playerMap[name]) {
                         playerMap[name] = {
@@ -456,17 +443,12 @@
                         };
                     }
                     
-                    // حفظ أفضل أو أحدث تير لكل نمط (هنا يتم حساب النقاط وإسناد التير للنمط الخاص به)
                     playerMap[name].modes[modeClean] = tier;
-                    
-                    // حساب إجمالي النقاط (مجموع النقاط عبر كل الأنماط)
-                    // ملاحظة: لو اللاعب ليه أكتر من نتيجة في نفس النمط، يمكنك تعديل المنطق حسب رغبتك، هنا بنجمع نقاط الأنماط المختلفة
                     if(item.skinUrl && !playerMap[name].skinUrl) {
                         playerMap[name].skinUrl = item.skinUrl;
                     }
                 });
 
-                // إعادة حساب إجمالي النقاط بدقة لكل لاعب بناءً على الأنماط المسجلة له
                 const playersArray = Object.values(playerMap);
                 playersArray.forEach(p => {
                     let sum = 0;
@@ -507,6 +489,7 @@
                 });
 
                 const playersArray = Object.values(playerMap);
+                playersArray.exports?.forEach?.();
                 playersArray.forEach(p => {
                     let sum = 0;
                     Object.values(p.modes).forEach(t => { sum += (tierPoints[t] || 0); });
