@@ -288,7 +288,7 @@ client.on('interactionCreate', async interaction => {
         }
     }
 
-    // 4. إغلاق الاختبار
+    // 4. إغلاق الاختبار (Close Test) - نسخة معدلة لتنظيف الرتب
     if (interaction.customId === 'close_test') {
         const member = await interaction.guild.members.fetch(interaction.user.id);
         const isTester = member.roles.cache.some(role => role.name === 'Tester');
@@ -297,6 +297,21 @@ client.on('interactionCreate', async interaction => {
             return interaction.reply({ content: '❌ فقط التيستر المسؤول يمكنه إغلاق الاختبار!', ephemeral: true });
         }
 
+        const role = interaction.guild.roles.cache.find(r => r.name === modeData.role);
+
+        // إزالة الرتبة عن أي شخص ما زال موجوداً في القائمة (بمن فيهم الشخص الذي كان يختبر حالياً)
+        if (role) {
+            for (const user of state.queue) {
+                try {
+                    const queueMember = await interaction.guild.members.fetch(user.id);
+                    if (queueMember.roles.cache.has(role.id)) {
+                        await queueMember.roles.remove(role);
+                    }
+                } catch (e) {}
+            }
+        }
+
+        // تصفير الحالة
         state.isOpen = false;
         state.testerName = null;
         state.testerId = null;
@@ -304,8 +319,10 @@ client.on('interactionCreate', async interaction => {
 
         const embed = generateEmbed(channelId);
         await interaction.update({ embeds: [embed], components: [] });
+        
+        const msg = await interaction.channel.send(`🔒 تم إغلاق اختبار **${modeData.name}** وإزالة جميع رتب الانتظار بنجاح.`);
+        setTimeout(() => msg.delete().catch(() => {}), 5000);
     }
-});
 
 if (process.env.DISCORD_TOKEN) {
     client.login(process.env.DISCORD_TOKEN);
