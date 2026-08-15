@@ -86,9 +86,28 @@ client.on('messageCreate', async message => {
         }
     }
 
-    // 2. أمر فتح قائمة الانتظار (!opentest) - مخصص للتيسترين
+    // 2. أمر إرسال رسالة الحالة الحمراء الأساسية في الروم (!setupwaitlist)
+    if (message.content === '!setupwaitlist') {
+        if (!message.member.roles.cache.some(role => role.name === 'Tester') && !message.member.permissions.has('Administrator')) {
+            return message.reply('❌ هذا الأمر مخصص للآدمن أو التيسترين فقط!');
+        }
+
+        const offlineEmbed = new EmbedBuilder()
+            .setColor('#e74c3c')
+            .setTitle('No Testers Online')
+            .setDescription('No testers for your region are available at this time.\nYou will be pinged when a tester is available.\nCheck back later!')
+            .setFooter({ text: `Last testing session: ${new Date().toLocaleDateString()}` })
+            .setTimestamp();
+
+        const sentMsg = await message.channel.send({ embeds: [offlineEmbed] });
+        waitlistState.messageId = sentMsg.id;
+        waitlistState.channelId = message.channel.id;
+
+        await message.delete().catch(() => {});
+    }
+
+    // 3. أمر فتح قائمة الانتظار (!opentest)
     if (message.content === '!opentest') {
-        // التحقق من أن المستخدم لديه رتبة Tester (يمكنك تعديل اسم الرتبة هنا إن أردت)
         if (!message.member.roles.cache.some(role => role.name === 'Tester')) {
             return message.reply('❌ عذراً، هذا الأمر مخصص لحاملي رتبة `@Tester` فقط!');
         }
@@ -118,10 +137,21 @@ client.on('messageCreate', async message => {
                     .setStyle(ButtonStyle.Danger)
             );
 
-        const sentMessage = await message.channel.send({ embeds: [embed], components: [row] });
-        waitlistState.messageId = sentMessage.id;
+        // إذا كانت رسالة الحالة موجودة مسبقاً، قم بتعديلها (Edit)، وإلا أرسل رسالة جديدة
+        if (waitlistState.messageId) {
+            try {
+                const channel = await client.channels.fetch(waitlistState.channelId);
+                const msg = await channel.messages.fetch(waitlistState.messageId);
+                await msg.edit({ embeds: [embed], components: [row] });
+            } catch (e) {
+                const sentMessage = await message.channel.send({ embeds: [embed], components: [row] });
+                waitlistState.messageId = sentMessage.id;
+            }
+        } else {
+            const sentMessage = await message.channel.send({ embeds: [embed], components: [row] });
+            waitlistState.messageId = sentMessage.id;
+        }
         
-        // حذف رسالة الأمر لتنظيف الشات
         await message.delete().catch(() => {});
     }
 });
@@ -147,7 +177,6 @@ client.on('interactionCreate', async interaction => {
         waitlistState.queue.push(interaction.user.id);
         const currentCount = waitlistState.queue.length;
 
-        // تحديث الـ Embed وزر الانضمام بالعدد الجديد
         const embed = EmbedBuilder.from(interaction.message.embeds[0])
             .setFields({ name: 'Current Queue', value: `${currentCount} players in queue` });
 
@@ -169,7 +198,6 @@ client.on('interactionCreate', async interaction => {
 
     // زر إغلاق الاختبار من قِبل التيستر
     if (interaction.customId === 'close_test') {
-        // التحقق أن الشخص الذي يغلق هو نفسه التيستر أو لديه رتبة Tester
         const member = await interaction.guild.members.fetch(interaction.user.id);
         const isTesterRole = member.roles.cache.some(role => role.name === 'Tester');
         
@@ -177,7 +205,6 @@ client.on('interactionCreate', async interaction => {
             return interaction.reply({ content: '❌ فقط التيستر المسؤول يمكنه إغلاق الاختبار!', ephemeral: true });
         }
 
-        // إرجاع الحالة للوضع المغلق (No Testers Online) المماثل لصورتك
         waitlistState.isOpen = false;
         waitlistState.testerName = null;
         waitlistState.testerId = null;
@@ -190,6 +217,7 @@ client.on('interactionCreate', async interaction => {
             .setFooter({ text: `Last testing session: ${new Date().toLocaleDateString()}` })
             .setTimestamp();
 
+        // تحديث نفس الرسالة وإزالة الأزرار لتعود للشكل الأحمر الصامت
         await interaction.update({ embeds: [offlineEmbed], components: [] });
     }
 });
@@ -208,7 +236,7 @@ async function syncResultsToGitHub(data) {
     try {
         const response = await axios.get(url, { headers: { Authorization: `token ${token}` } });
         await axios.put(url, {
-            message: 'Update results.json automatically',
+            message: `Update results.json automatically`,
             content: Buffer.from(JSON.stringify(data, null, 2)).toString('base64'),
             sha: response.data.sha
         }, { headers: { Authorization: `token ${token}` } });
